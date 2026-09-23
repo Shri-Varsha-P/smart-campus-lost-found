@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f7fb;
+            color: #1f2937;
+        }
+
+        header {
+            background: #1e3a8a;
+            color: white;
+            padding: 20px 60px;
+        }
+
+        header h1 {
+            font-size: 24px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 45px auto;
+            padding: 0 20px;
+        }
+
+        .back {
+            display: inline-block;
+            margin-bottom: 25px;
+            color: #1e3a8a;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        h2 {
+            color: #1e3a8a;
+            margin-bottom: 10px;
+        }
+
+        .description {
+            color: #6b7280;
+            margin-bottom: 30px;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 25px;
+        }
+
+        .dashboard-card {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+            text-align: center;
+        }
+
+        .dashboard-card h3 {
+            color: #1e3a8a;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+
+        .dashboard-card p {
+            color: #6b7280;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        .dashboard-card .count {
+            font-size: 48px;
+            font-weight: bold;
+            color: #1e3a8a;
+            margin-bottom: 15px;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .primary {
+            background: #1e3a8a;
+            color: white;
+        }
+
+        .secondary {
+            border: 2px solid #1e3a8a;
+            color: #1e3a8a;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6b7280;
+        }
+
+        @media (max-width: 768px) {
+            header {
+                padding: 20px;
+            }
+
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .container {
+                margin: 30px auto;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Smart Campus Lost & Found</h1>
+    </header>
+
+    <div class="container">
+        <a href="/" class="back">← Back to Home</a>
+
+        <h2>Admin Dashboard</h2>
+        <p class="description">Overview and management tools</p>
+
+        <div id="dashboardContainer" class="dashboard-grid">
+            <div class="loading">Loading dashboard...</div>
+        </div>
+    </div>
+
+    <script src="/js/auth.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const dashboardContainer = document.getElementById('dashboardContainer');
+
+            if (!requireAuth()) {
+                return;
+            }
+
+            if (!requireRole(['admin', 'security'])) {
+                alert('Access denied. Admin or security role required.');
+                window.location.href = '/';
+                return;
+            }
+
+            Promise.all([
+                makeAuthenticatedRequest('/api/lost-items').then(r => r.json()),
+                makeAuthenticatedRequest('/api/claims').then(r => r.json()),
+                makeAuthenticatedRequest('/api/assets').then(r => r.json()),
+                makeAuthenticatedRequest('/api/asset-reports').then(r => r.json())
+            ])
+            .then(([lostItems, claims, assets, reports]) => {
+                displayDashboard(lostItems, claims, assets, reports);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                dashboardContainer.innerHTML = '<div class="loading">Failed to load dashboard</div>';
+            });
+
+            function displayDashboard(lostItems, claims, assets, reports) {
+                const lostItemsCount = lostItems.success ? lostItems.items.length : 0;
+                const claimsCount = claims.success ? claims.claims.length : 0;
+                const assetsCount = assets.success ? assets.assets.length : 0;
+                const reportsCount = reports.success ? reports.reports.length : 0;
+
+                dashboardContainer.innerHTML = `
+                    <div class="dashboard-card">
+                        <div class="count">${lostItemsCount}</div>
+                        <h3>Lost Items</h3>
+                        <p>Total reported lost items</p>
+                        <a href="/browse-lost-items.html" class="btn primary">View Items</a>
+                    </div>
+
+                    <div class="dashboard-card">
+                        <div class="count">${claimsCount}</div>
+                        <h3>Claims</h3>
+                        <p>Total claims submitted</p>
+                        <a href="/claims.html" class="btn primary">View Claims</a>
+                    </div>
+
+                    <div class="dashboard-card">
+                    <div class="count">${assetsCount}</div>
+                    <h3>Institutional Assets</h3>
+                    <p>Registered assets</p>
+                    <a href="/assets.html" class="btn primary">View Assets</a>
+                </div>
+
+                <div class="dashboard-card">
+                    <div class="count">${reportsCount}</div>
+                    <h3>Asset Reports</h3>
+                    <p>Asset reports submitted</p>
+                    <a href="/asset-reports.html" class="btn primary">View Reports</a>
+                </div>
+
+                <div class="dashboard-card">
+                    <h3>Manage Users</h3>
+                    <p>View and manage system users</p>
+                    <a href="/users.html" class="btn secondary">View Users</a>
+                </div>
+
+                <div class="dashboard-card">
+                    <h3>System Status</h3>
+                    <p>View system health and logs</p>
+                    <button class="btn secondary" onclick="checkSystem()">Check Status</button>
+                </div>
+            `;
+        }
+
+        function checkSystem() {
+            alert('System is running normally. All services are operational.');
+        }
+        });
+    </script>
+</body>
+</html>

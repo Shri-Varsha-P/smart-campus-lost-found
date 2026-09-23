@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browse Found Items</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f7fb;
+            color: #1f2937;
+        }
+
+        header {
+            background: #1e3a8a;
+            color: white;
+            padding: 20px 60px;
+        }
+
+        header h1 {
+            font-size: 24px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 45px auto;
+            padding: 0 20px;
+        }
+
+        .back {
+            display: inline-block;
+            margin-bottom: 25px;
+            color: #1e3a8a;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        h2 {
+            color: #1e3a8a;
+            margin-bottom: 10px;
+        }
+
+        .description {
+            color: #6b7280;
+            margin-bottom: 30px;
+        }
+
+        .items-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+        }
+
+        .item-card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .item-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .item-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            background: #e5e7eb;
+        }
+
+        .item-content {
+            padding: 20px;
+        }
+
+        .item-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1e3a8a;
+            margin-bottom: 10px;
+        }
+
+        .item-location {
+            color: #6b7280;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .item-time {
+            color: #6b7280;
+            font-size: 13px;
+            margin-bottom: 12px;
+        }
+
+        .item-status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .status-Available {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status-Claimed {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-Returned {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .item-reporter {
+            color: #6b7280;
+            font-size: 13px;
+            margin-top: 10px;
+        }
+
+        .no-items {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6b7280;
+        }
+
+        .no-items h3 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6b7280;
+        }
+
+        @media (max-width: 768px) {
+            header {
+                padding: 20px;
+            }
+
+            .items-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .container {
+                margin: 30px auto;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Smart Campus Lost & Found</h1>
+    </header>
+
+    <div class="container">
+        <a href="/" class="back">← Back to Home</a>
+
+        <h2>Browse Found Items</h2>
+        <p class="description">View all items found on campus</p>
+
+        <div id="itemsContainer" class="items-grid">
+            <div class="loading">Loading found items...</div>
+        </div>
+    </div>
+
+    <script>
+        const itemsContainer = document.getElementById('itemsContainer');
+
+        fetch('/api/found-items')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.items.length > 0) {
+                    displayItems(data.items);
+                } else {
+                    itemsContainer.innerHTML = `
+                        <div class="no-items">
+                            <h3>No found items reported yet</h3>
+                            <p>Be the first to report a found item!</p>
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                itemsContainer.innerHTML = `
+                    <div class="no-items">
+                        <h3>Failed to load items</h3>
+                        <p>Please try again later.</p>
+                    </div>
+                `;
+            });
+
+        function displayItems(items) {
+            itemsContainer.innerHTML = items.map(item => `
+                <div class="item-card" onclick="viewItem(${item.id})">
+                    ${item.image_url ? `
+                        <img src="${item.image_url}" alt="${item.title}" class="item-image">
+                    ` : `
+                        <div class="item-image" style="display: flex; align-items: center; justify-content: center; color: #9ca3af;">
+                            No Image
+                        </div>
+                    `}
+                    <div class="item-content">
+                        <div class="item-title">${item.title}</div>
+                        <div class="item-location">📍 ${item.location}</div>
+                        <div class="item-time">🕒 ${formatDate(item.found_time)}</div>
+                        <span class="item-status status-${item.status}">${item.status}</span>
+                        <div class="item-reporter">Found by: ${item.reporter_name || 'Unknown'}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function viewItem(id) {
+            window.location.href = `/found-item-details.html?id=${id}`;
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleString();
+        }
+    </script>
+</body>
+</html>

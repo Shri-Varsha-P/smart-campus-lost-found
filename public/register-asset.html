@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register Institutional Asset</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f7fb;
+            color: #1f2937;
+        }
+
+        header {
+            background: #1e3a8a;
+            color: white;
+            padding: 20px 60px;
+        }
+
+        header h1 {
+            font-size: 24px;
+        }
+
+        .container {
+            max-width: 700px;
+            margin: 45px auto;
+            background: white;
+            padding: 35px;
+            border-radius: 10px;
+            box-shadow: 0 3px 15px rgba(0, 0, 0, 0.08);
+        }
+
+        .back {
+            display: inline-block;
+            margin-bottom: 25px;
+            color: #1e3a8a;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        h2 {
+            color: #1e3a8a;
+            margin-bottom: 10px;
+        }
+
+        .description {
+            color: #6b7280;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        input,
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 15px;
+        }
+
+        button {
+            width: 100%;
+            padding: 13px;
+            border: none;
+            border-radius: 6px;
+            background: #1e3a8a;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #172e6b;
+        }
+
+        button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        #message {
+            margin-top: 20px;
+            padding: 12px;
+            border-radius: 6px;
+            display: none;
+        }
+
+        .qr-result {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f9fafb;
+            border-radius: 6px;
+            text-align: center;
+            display: none;
+        }
+
+        .qr-result img {
+            max-width: 200px;
+            height: auto;
+            margin: 15px 0;
+        }
+
+        .download-qr {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #1e3a8a;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 768px) {
+            header {
+                padding: 20px;
+            }
+
+            .container {
+                margin: 30px auto;
+                padding: 25px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Smart Campus Lost & Found</h1>
+    </header>
+
+    <div class="container">
+        <a href="/assets.html" class="back">← Back to Assets</a>
+
+        <h2>Register Institutional Asset</h2>
+        <p class="description">
+            Register a new institutional asset and generate its QR code.
+        </p>
+
+        <form id="assetForm">
+            <div class="form-group">
+                <label for="assetId">Asset ID</label>
+                <input
+                    type="text"
+                    id="assetId"
+                    placeholder="Example: LAB-CAM-024"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="assetName">Asset Name</label>
+                <input
+                    type="text"
+                    id="assetName"
+                    placeholder="Example: DSLR Camera"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="department">Department</label>
+                <input
+                    type="text"
+                    id="department"
+                    placeholder="Example: Media Lab"
+                >
+            </div>
+
+            <button
+                type="submit"
+                id="submitButton"
+            >
+                Register Asset & Generate QR Code
+            </button>
+        </form>
+
+        <div id="message"></div>
+
+        <div id="qrResult" class="qr-result">
+            <h3>Asset Registered Successfully!</h3>
+            <p>Asset ID: <span id="resultAssetId"></span></p>
+            <p>Name: <span id="resultAssetName"></span></p>
+            <img id="qrImage" src="" alt="QR Code">
+            <br>
+            <a id="downloadQr" href="" download class="download-qr">Download QR Code</a>
+            <br><br>
+            <button onclick="location.href='/assets.html'">View All Assets</button>
+        </div>
+    </div>
+
+    <script src="/js/auth.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('assetForm');
+            const message = document.getElementById('message');
+            const submitButton = document.getElementById('submitButton');
+            const qrResult = document.getElementById('qrResult');
+
+            if (!requireAuth()) {
+                return;
+            }
+
+            if (!requireRole(['admin'])) {
+                alert('Access denied. Admin role required.');
+                window.location.href = '/';
+                return;
+            }
+
+            form.addEventListener('submit', async function(event) {
+            event.preventDefault();
+
+            submitButton.disabled = true;
+            submitButton.textContent = 'Registering...';
+
+            const assetId = document.getElementById('assetId').value;
+            const assetName = document.getElementById('assetName').value;
+            const department = document.getElementById('department').value;
+
+            try {
+                const response = await makeAuthenticatedRequest('/api/assets', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        asset_id: assetId,
+                        name: assetName,
+                        department: department
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    showMessage('Asset registered successfully!', true);
+                    
+                    document.getElementById('resultAssetId').textContent = assetId;
+                    document.getElementById('resultAssetName').textContent = assetName;
+                    document.getElementById('qrImage').src = data.qr_code;
+                    document.getElementById('downloadQr').href = data.qr_code;
+                    document.getElementById('downloadQr').download = `qr-${assetId}.png`;
+                    
+                    qrResult.style.display = 'block';
+                    form.style.display = 'none';
+                } else {
+                    showMessage(data.message || 'Failed to register asset.', false);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showMessage('Unable to connect to the server.', false);
+            }
+
+            submitButton.disabled = false;
+            submitButton.textContent = 'Register Asset & Generate QR Code';
+        });
+
+        function showMessage(text, success) {
+            message.style.display = 'block';
+            message.textContent = text;
+
+            if (success) {
+                message.style.background = '#dcfce7';
+                message.style.color = '#166534';
+            } else {
+                message.style.background = '#fee2e2';
+                message.style.color = '#991b1b';
+            }
+        }
+        });
+    </script>
+</body>
+</html>

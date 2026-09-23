@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lost Item Details</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f7fb;
+            color: #1f2937;
+        }
+
+        header {
+            background: #1e3a8a;
+            color: white;
+            padding: 20px 60px;
+        }
+
+        header h1 {
+            font-size: 24px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 45px auto;
+            background: white;
+            padding: 35px;
+            border-radius: 10px;
+            box-shadow: 0 3px 15px rgba(0, 0, 0, 0.08);
+        }
+
+        .back {
+            display: inline-block;
+            margin-bottom: 25px;
+            color: #1e3a8a;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .item-image {
+            width: 100%;
+            max-height: 400px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            background: #e5e7eb;
+        }
+
+        .item-title {
+            font-size: 28px;
+            color: #1e3a8a;
+            margin-bottom: 10px;
+        }
+
+        .item-status {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 16px;
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .status-Open {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status-Claimed {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-Resolved {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .status-Disputed {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .detail-row {
+            margin-bottom: 15px;
+        }
+
+        .detail-label {
+            font-weight: bold;
+            color: #374151;
+            margin-bottom: 5px;
+        }
+
+        .detail-value {
+            color: #6b7280;
+            line-height: 1.5;
+        }
+
+        .description {
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 5px;
+        }
+
+        .section {
+            margin-top: 30px;
+            padding-top: 25px;
+            border-top: 2px solid #e5e7eb;
+        }
+
+        .section h3 {
+            color: #1e3a8a;
+            margin-bottom: 15px;
+        }
+
+        .comments-section {
+            margin-top: 30px;
+        }
+
+        .comment {
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+
+        .comment-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .comment-author {
+            font-weight: bold;
+            color: #1e3a8a;
+        }
+
+        .comment-time {
+            color: #9ca3af;
+            font-size: 12px;
+        }
+
+        .comment-text {
+            color: #6b7280;
+            line-height: 1.5;
+        }
+
+        .no-comments {
+            color: #9ca3af;
+            font-style: italic;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 15px;
+            height: 100px;
+            resize: vertical;
+            margin-bottom: 15px;
+        }
+
+        button {
+            width: 100%;
+            padding: 13px;
+            border: none;
+            border-radius: 6px;
+            background: #1e3a8a;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #172e6b;
+        }
+
+        button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        #message {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 6px;
+            display: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+
+        .error {
+            text-align: center;
+            padding: 40px;
+            color: #991b1b;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .actions button {
+            flex: 1;
+        }
+
+        @media (max-width: 768px) {
+            header {
+                padding: 20px;
+            }
+
+            .container {
+                margin: 30px auto;
+                padding: 25px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Smart Campus Lost & Found</h1>
+    </header>
+
+    <div class="container">
+        <a href="/browse-lost-items.html" class="back">← Back to Lost Items</a>
+
+        <div id="itemContainer">
+            <div class="loading">Loading item details...</div>
+        </div>
+    </div>
+
+    <script src="/js/auth.js"></script>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const itemId = urlParams.get('id');
+        const itemContainer = document.getElementById('itemContainer');
+        const currentUser = getCurrentUser();
+
+        if (!itemId) {
+            itemContainer.innerHTML = '<div class="error">Item ID not provided</div>';
+        } else {
+            fetch(`/api/lost-items/${itemId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayItem(data.item);
+                        loadComments(itemId);
+                    } else {
+                        itemContainer.innerHTML = '<div class="error">' + data.message + '</div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    itemContainer.innerHTML = '<div class="error">Failed to load item details</div>';
+                });
+        }
+
+        function displayItem(item) {
+            const statusClass = `status-${item.status}`;
+            
+            itemContainer.innerHTML = `
+                ${item.image_url ? `
+                    <img src="${item.image_url}" alt="${item.title}" class="item-image">
+                ` : ''}
+
+                <h2 class="item-title">${item.title}</h2>
+                <span class="item-status ${statusClass}">${item.status}</span>
+
+                <div class="detail-row">
+                    <div class="detail-label">Description</div>
+                    <div class="detail-value description">${item.description}</div>
+                </div>
+
+                <div class="detail-row">
+                    <div class="detail-label">Last Seen Location</div>
+                    <div class="detail-value">📍 ${item.location}</div>
+                </div>
+
+                <div class="detail-row">
+                    <div class="detail-label">Date and Time Lost</div>
+                    <div class="detail-value">🕒 ${formatDate(item.lost_time)}</div>
+                </div>
+
+                <div class="detail-row">
+                    <div class="detail-label">Reported By</div>
+                    <div class="detail-value">${item.reporter_name || 'Unknown'}</div>
+                </div>
+
+                <div class="detail-row">
+                    <div class="detail-label">Reported On</div>
+                    <div class="detail-value">${formatDate(item.created_at)}</div>
+                </div>
+
+                <div class="section" id="ownerControls" style="display: none;">
+                    <h3>Owner Controls</h3>
+                    <p style="color: #6b7280; margin-bottom: 15px;">Manage your lost item post</p>
+                    <div class="actions">
+                        <button onclick="markAsFound(${item.id})">Mark as Found</button>
+                        <button onclick="deletePost(${item.id})" style="background: #991b1b;">Delete Post</button>
+                    </div>
+                    <div id="ownerMessage"></div>
+                </div>
+
+                <div class="section">
+                    <h3>Community Comments</h3>
+                    <div id="commentsContainer">
+                        <div class="loading">Loading comments...</div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h3>Add Comment</h3>
+                    <p style="color: #6b7280; margin-bottom: 15px;">Share information that may help find this item.</p>
+                    <textarea id="commentText" placeholder="I saw this item near the library..."></textarea>
+                    <button onclick="addComment(${item.id})">Add Comment</button>
+                    <div id="commentMessage"></div>
+                </div>
+            `;
+
+            if (currentUser && (currentUser.id === item.user_id || currentUser.role === 'admin')) {
+                document.getElementById('ownerControls').style.display = 'block';
+            }
+        }
+
+        function loadComments(itemId) {
+            fetch(`/api/comments?item_type=lost&item_id=${itemId}`)
+                .then(response => response.json())
+                .then(data => {
+                    const container = document.getElementById('commentsContainer');
+                    if (data.success && data.comments.length > 0) {
+                        container.innerHTML = data.comments.map(comment => `
+                            <div class="comment">
+                                <div class="comment-header">
+                                    <span class="comment-author">${comment.commenter_name || 'Anonymous'}</span>
+                                    <span class="comment-time">${formatDate(comment.created_at)}</span>
+                                </div>
+                                <div class="comment-text">${comment.message}</div>
+                            </div>
+                        `).join('');
+                    } else {
+                        container.innerHTML = '<div class="no-comments">No comments yet. Be the first to share information!</div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading comments:', error);
+                    document.getElementById('commentsContainer').innerHTML = '<div class="error">Failed to load comments</div>';
+                });
+        }
+
+        function markAsFound(itemId) {
+            const messageDiv = document.getElementById('ownerMessage');
+
+            makeAuthenticatedRequest(`/api/lost-items/${itemId}/found`, {
+                method: 'PUT'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage(messageDiv, 'Item marked as found successfully!', true);
+                    setTimeout(() => {
+                        window.location.href = '/browse-lost-items.html';
+                    }, 1500);
+                } else {
+                    showMessage(messageDiv, data.message || 'Failed to mark item as found.', false);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showMessage(messageDiv, 'Unable to connect to the server.', false);
+            });
+        }
+
+        function deletePost(itemId) {
+            if (!confirm('Are you sure you want to delete this post?')) {
+                return;
+            }
+
+            const messageDiv = document.getElementById('ownerMessage');
+
+            makeAuthenticatedRequest(`/api/lost-items/${itemId}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage(messageDiv, 'Post deleted successfully!', true);
+                    setTimeout(() => {
+                        window.location.href = '/browse-lost-items.html';
+                    }, 1500);
+                } else {
+                    showMessage(messageDiv, data.message || 'Failed to delete post.', false);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showMessage(messageDiv, 'Unable to connect to the server.', false);
+            });
+        }
+
+        function addComment(itemId) {
+            const commentText = document.getElementById('commentText').value;
+            const messageDiv = document.getElementById('commentMessage');
+
+            if (!commentText.trim()) {
+                showMessage(messageDiv, 'Please enter a comment.', false);
+                return;
+            }
+
+            makeAuthenticatedRequest('/api/comments', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    item_type: 'lost',
+                    item_id: itemId,
+                    message: commentText
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage(messageDiv, 'Comment added successfully!', true);
+                    document.getElementById('commentText').value = '';
+                    loadComments(itemId);
+                } else {
+                    showMessage(messageDiv, data.message || 'Failed to add comment.', false);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showMessage(messageDiv, 'Unable to connect to the server.', false);
+            });
+        }
+
+
+
+        function showMessage(container, text, success) {
+            container.style.display = 'block';
+            container.textContent = text;
+
+            if (success) {
+                container.style.background = '#dcfce7';
+                container.style.color = '#166534';
+            } else {
+                container.style.background = '#fee2e2';
+                container.style.color = '#991b1b';
+            }
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleString();
+        }
+    </script>
+</body>
+</html>

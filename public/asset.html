@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asset Details</title>
+<style>
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+    }
+
+    body {
+        font-family: Arial, sans-serif;
+        background: #f5f7fb;
+        color: #1f2937;
+    }
+
+    header {
+        background: #1e3a8a;
+        color: white;
+        padding: 20px 60px;
+    }
+
+    header h1 {
+        font-size: 24px;
+    }
+
+    .container {
+        max-width: 800px;
+        margin: 45px auto;
+        background: white;
+        padding: 35px;
+        border-radius: 10px;
+        box-shadow: 0 3px 15px rgba(0, 0, 0, 0.08);
+    }
+
+    .back {
+        display: inline-block;
+        margin-bottom: 25px;
+        color: #1e3a8a;
+        text-decoration: none;
+        font-weight: bold;
+    }
+
+    .asset-id {
+        font-size: 13px;
+        color: #6b7280;
+        margin-bottom: 8px;
+    }
+
+    .asset-name {
+        font-size: 28px;
+        color: #1e3a8a;
+        margin-bottom: 10px;
+    }
+
+    .asset-status {
+        display: inline-block;
+        padding: 6px 16px;
+        border-radius: 16px;
+        font-size: 14px;
+        font-weight: bold;
+        margin-bottom: 20px;
+    }
+
+    .status-Available {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .status-Lost {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .status-Recovered {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .detail-row {
+        margin-bottom: 15px;
+    }
+
+    .detail-label {
+        font-weight: bold;
+        color: #374151;
+        margin-bottom: 5px;
+    }
+
+    .detail-value {
+        color: #6b7280;
+        line-height: 1.5;
+    }
+
+    .section {
+        margin-top: 30px;
+        padding-top: 25px;
+        border-top: 2px solid #e5e7eb;
+    }
+
+    .section h3 {
+        color: #1e3a8a;
+        margin-bottom: 15px;
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    .form-group label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+
+    .form-group input,
+    .form-group textarea {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 15px;
+    }
+
+    .form-group textarea {
+        height: 100px;
+        resize: vertical;
+    }
+
+    button {
+        width: 100%;
+        padding: 13px;
+        border: none;
+        border-radius: 6px;
+        background: #1e3a8a;
+        color: white;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    button:hover {
+        background: #172e6b;
+    }
+
+    .actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 20px;
+    }
+
+    .actions button {
+        flex: 1;
+    }
+
+    .admin-controls {
+        background: #f9fafb;
+        padding: 20px;
+        border-radius: 6px;
+        margin-top: 20px;
+    }
+
+    .admin-controls select {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        margin-bottom: 10px;
+    }
+
+    .qr-display {
+        text-align: center;
+        margin: 20px 0;
+    }
+
+    .qr-display img {
+        max-width: 200px;
+        height: auto;
+    }
+
+    .download-qr {
+        display: inline-block;
+        padding: 10px 20px;
+        background: #1e3a8a;
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
+        margin-top: 10px;
+    }
+
+    .loading {
+        text-align: center;
+        padding: 40px;
+        color: #6b7280;
+    }
+
+    .error {
+        text-align: center;
+        padding: 40px;
+        color: #991b1b;
+    }
+
+    #message {
+        margin-top: 15px;
+        padding: 12px;
+        border-radius: 6px;
+        display: none;
+    }
+
+    @media (max-width: 768px) {
+        header {
+            padding: 20px;
+        }
+
+        .container {
+            margin: 30px auto;
+            padding: 25px;
+        }
+
+        .actions {
+            flex-direction: column;
+        }
+    }
+</style>
+```
+
+</head>
+
+<body>
+
+```
+<header>
+    <h1>Smart Campus Lost & Found</h1>
+</header>
+
+<div class="container">
+
+    <a href="/assets.html" class="back">
+        ← Back to Assets
+    </a>
+
+    <div id="assetContainer">
+        <div class="loading">
+            Loading asset details...
+        </div>
+    </div>
+
+</div>
+
+<script src="/js/auth.js"></script>
+
+<script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const assetId = urlParams.get('id');
+    const assetContainer = document.getElementById('assetContainer');
+
+    if (!requireAuth()) {
+        // requireAuth handles unauthenticated users.
+    } else if (!assetId) {
+
+        assetContainer.innerHTML =
+            '<div class="error">Asset ID not provided</div>';
+
+    } else {
+
+        loadAssetDetails();
+    }
+
+    function loadAssetDetails() {
+
+        /*
+         * /api/assets/:id is protected by authenticateToken.
+         * Therefore use makeAuthenticatedRequest() instead of fetch().
+         */
+        makeAuthenticatedRequest(`/api/assets/${encodeURIComponent(assetId)}`)
+            .then(response => {
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                return response.json();
+            })
+            .then(data => {
+
+                if (data.success) {
+                    displayAsset(data.asset);
+                } else {
+
+                    assetContainer.innerHTML =
+                        '<div class="error">' +
+                        escapeHtml(data.message || 'Asset not found') +
+                        '</div>';
+                }
+            })
+            .catch(error => {
+
+                console.error('Error loading asset:', error);
+
+                assetContainer.innerHTML =
+                    '<div class="error">Failed to load asset details</div>';
+            });
+    }
+
+    function displayAsset(asset) {
+
+        const statusClass = `status-${asset.status}`;
+
+        const currentUser = getCurrentUser();
+
+        const isAdmin =
+            currentUser &&
+            currentUser.role === 'admin';
+
+        assetContainer.innerHTML = `
+
+            <div class="asset-id">
+                Asset ID: ${escapeHtml(asset.asset_id)}
+            </div>
+
+            <h2 class="asset-name">
+                ${escapeHtml(asset.name)}
+            </h2>
+
+            <span class="asset-status ${escapeHtml(statusClass)}">
+                ${escapeHtml(asset.status)}
+            </span>
+
+            <div class="detail-row">
+                <div class="detail-label">
+                    Department
+                </div>
+
+                <div class="detail-value">
+                    ${escapeHtml(asset.department || 'N/A')}
+                </div>
+            </div>
+
+            <div class="detail-row">
+                <div class="detail-label">
+                    Registered On
+                </div>
+
+                <div class="detail-value">
+                    ${formatDate(asset.created_at)}
+                </div>
+            </div>
+
+            ${
+                asset.lost_at
+                    ? `
+                        <div class="detail-row">
+                            <div class="detail-label">
+                                Lost Since
+                            </div>
+
+                            <div class="detail-value">
+                                ${formatDate(asset.lost_at)}
+                            </div>
+                        </div>
+                    `
+                    : ''
+            }
+
+            ${
+                asset.qr_code
+                    ? `
+                        <div class="qr-display">
+
+                            <img
+                                src="${escapeHtml(asset.qr_code)}"
+                                alt="QR Code"
+                            >
+
+                            <br>
+
+                            <a
+                                href="${escapeHtml(asset.qr_code)}"
+                                download="qr-${escapeHtml(asset.asset_id)}.png"
+                                class="download-qr"
+                            >
+                                Download QR Code
+                            </a>
+
+                        </div>
+                    `
+                    : ''
+            }
+
+            ${
+                isAdmin
+                    ? `
+                        <div class="section">
+
+                            <h3>
+                                Admin Controls
+                            </h3>
+
+                            <div class="admin-controls">
+
+                                <div class="form-group">
+
+                                    <label for="statusSelect">
+                                        Change Status
+                                    </label>
+
+                                    <select id="statusSelect">
+
+                                        <option
+                                            value="Available"
+                                            ${asset.status === 'Available' ? 'selected' : ''}
+                                        >
+                                            Available
+                                        </option>
+
+                                        <option
+                                            value="Lost"
+                                            ${asset.status === 'Lost' ? 'selected' : ''}
+                                        >
+                                            Lost
+                                        </option>
+
+                                        <option
+                                            value="Recovered"
+                                            ${asset.status === 'Recovered' ? 'selected' : ''}
+                                        >
+                                            Recovered
+                                        </option>
+
+                                    </select>
+
+                                </div>
+
+                                <button onclick="updateStatus(${asset.id})">
+                                    Update Status
+                                </button>
+
+                            </div>
+
+                        </div>
+                    `
+                    : ''
+            }
+
+            ${
+                asset.status === 'Lost'
+                    ? `
+                        <div class="section">
+
+                            <h3>
+                                Submit Finder Report
+                            </h3>
+
+                            <p style="color: #6b7280; margin-bottom: 15px;">
+                                If you found this asset, please provide the following information:
+                            </p>
+
+                            <form id="reportForm">
+
+                                <div class="form-group">
+
+                                    <label for="location">
+                                        Location Found
+                                    </label>
+
+                                    <input
+                                        type="text"
+                                        id="location"
+                                        required
+                                    >
+
+                                </div>
+
+                                <div class="form-group">
+
+                                    <label for="foundTime">
+                                        Date and Time Found
+                                    </label>
+
+                                    <input
+                                        type="datetime-local"
+                                        id="foundTime"
+                                        required
+                                    >
+
+                                </div>
+
+                                <div class="form-group">
+
+                                    <label for="description">
+                                        Description
+                                    </label>
+
+                                    <textarea
+                                        id="description"
+                                        placeholder="Additional details about the found asset..."
+                                    ></textarea>
+
+                                </div>
+
+                                <button type="submit">
+                                    Submit Finder Report
+                                </button>
+
+                            </form>
+
+                            <div id="reportMessage"></div>
+
+                        </div>
+                    `
+                    : ''
+            }
+
+        `;
+
+        if (asset.status === 'Lost') {
+
+            const reportForm =
+                document.getElementById('reportForm');
+
+            if (reportForm) {
+
+                reportForm.addEventListener(
+                    'submit',
+                    (e) => {
+
+                        e.preventDefault();
+
+                        submitFinderReport(asset.id);
+                    }
+                );
+            }
+        }
+    }
+
+    function updateStatus(assetId) {
+
+        const status =
+            document.getElementById('statusSelect').value;
+
+        /*
+         * lost_at is only set when the asset becomes Lost.
+         * It is cleared when status becomes Available/Recovered
+         * by the backend.
+         */
+        const lost_at =
+            status === 'Lost'
+                ? new Date().toISOString()
+                : null;
+
+        makeAuthenticatedRequest(
+            `/api/assets/${assetId}/status`,
+            {
+                method: 'PUT',
+
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+
+                body: JSON.stringify({
+                    status: status,
+                    lost_at: lost_at
+                })
+            }
+        )
+        .then(response => {
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            return response.json();
+        })
+        .then(data => {
+
+            if (data.success) {
+
+                alert(
+                    'Status updated successfully!'
+                );
+
+                location.reload();
+
+            } else {
+
+                alert(
+                    data.message ||
+                    'Failed to update status.'
+                );
+            }
+        })
+        .catch(error => {
+
+            console.error(
+                'Error updating status:',
+                error
+            );
+
+            alert(
+                'Unable to connect to the server.'
+            );
+        });
+    }
+
+    function submitFinderReport(assetId) {
+
+        const location =
+            document.getElementById('location').value;
+
+        const foundTime =
+            document.getElementById('foundTime').value;
+
+        const description =
+            document.getElementById('description').value;
+
+        const messageDiv =
+            document.getElementById('reportMessage');
+
+        if (!location || !foundTime) {
+
+            showMessage(
+                messageDiv,
+                'Please provide location and time found.',
+                false
+            );
+
+            return;
+        }
+
+        makeAuthenticatedRequest(
+            '/api/asset-reports',
+            {
+                method: 'POST',
+
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+
+                body: JSON.stringify({
+                    asset_id: assetId,
+                    location: location,
+                    found_time: foundTime,
+                    description: description
+                })
+            }
+        )
+        .then(response => {
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            return response.json();
+        })
+        .then(data => {
+
+            if (data.success) {
+
+                showMessage(
+                    messageDiv,
+                    'Finder report submitted successfully!',
+                    true
+                );
+
+                document
+                    .getElementById('reportForm')
+                    .reset();
+
+            } else {
+
+                showMessage(
+                    messageDiv,
+                    data.message ||
+                    'Failed to submit report.',
+                    false
+                );
+            }
+        })
+        .catch(error => {
+
+            console.error(
+                'Error submitting finder report:',
+                error
+            );
+
+            showMessage(
+                messageDiv,
+                'Unable to connect to the server.',
+                false
+            );
+        });
+    }
+
+    function showMessage(
+        container,
+        text,
+        success
+    ) {
+
+        container.style.display = 'block';
+
+        container.textContent = text;
+
+        if (success) {
+
+            container.style.background =
+                '#dcfce7';
+
+            container.style.color =
+                '#166534';
+
+        } else {
+
+            container.style.background =
+                '#fee2e2';
+
+            container.style.color =
+                '#991b1b';
+        }
+    }
+
+    function formatDate(dateString) {
+
+        if (!dateString) {
+            return 'N/A';
+        }
+
+        const date = new Date(dateString);
+
+        if (isNaN(date.getTime())) {
+            return 'N/A';
+        }
+
+        return date.toLocaleString();
+    }
+
+    function escapeHtml(value) {
+
+        if (
+            value === null ||
+            value === undefined
+        ) {
+            return '';
+        }
+
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+</script>
+
+</body>
+</html>

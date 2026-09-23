@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Report Lost Item</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f7fb;
+            color: #1f2937;
+        }
+
+        header {
+            background: #1e3a8a;
+            color: white;
+            padding: 20px 60px;
+        }
+
+        header h1 {
+            font-size: 24px;
+        }
+
+        .container {
+            max-width: 700px;
+            margin: 45px auto;
+            background: white;
+            padding: 35px;
+            border-radius: 10px;
+            box-shadow: 0 3px 15px rgba(0, 0, 0, 0.08);
+        }
+
+        .back {
+            display: inline-block;
+            margin-bottom: 25px;
+            color: #1e3a8a;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        h2 {
+            color: #1e3a8a;
+            margin-bottom: 10px;
+        }
+
+        .description {
+            color: #6b7280;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        input,
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 15px;
+        }
+
+        textarea {
+            height: 120px;
+            resize: vertical;
+        }
+
+        input[type="file"] {
+            background: #f9fafb;
+            cursor: pointer;
+        }
+
+        button {
+            width: 100%;
+            padding: 13px;
+            border: none;
+            border-radius: 6px;
+            background: #1e3a8a;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #172e6b;
+        }
+
+        button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        #message {
+            margin-top: 20px;
+            padding: 12px;
+            border-radius: 6px;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>Smart Campus Lost & Found</h1>
+    </header>
+
+    <div class="container">
+
+        <a href="/" class="back">← Back to Home</a>
+
+        <div id="authRequired" style="display: none; text-align: center; padding: 40px;">
+            <h2>Login Required</h2>
+            <p style="color: #6b7280; margin: 20px 0;">Please login to report a lost item.</p>
+            <a href="/login.html" class="btn primary">Login</a>
+        </div>
+
+        <div id="content">
+            <h2>Report a Lost Item</h2>
+
+        <p class="description">
+            Provide the details of the item you lost on campus.
+        </p>
+
+        <form id="lostItemForm">
+
+            <!-- ITEM NAME -->
+            <div class="form-group">
+
+                <label for="title">
+                    Item Name
+                </label>
+
+                <input
+                    type="text"
+                    id="title"
+                    placeholder="Example: Black Wallet"
+                    required
+                >
+
+            </div>
+
+
+            <!-- DESCRIPTION -->
+            <div class="form-group">
+
+                <label for="description">
+                    Description
+                </label>
+
+                <textarea
+                    id="description"
+                    placeholder="Describe the item, colour, identifying features, etc."
+                    required
+                ></textarea>
+
+            </div>
+
+
+            <!-- LOCATION -->
+            <div class="form-group">
+
+                <label for="location">
+                    Last Seen Location
+                </label>
+
+                <input
+                    type="text"
+                    id="location"
+                    placeholder="Example: IT Block - 2nd Floor"
+                    required
+                >
+
+            </div>
+
+
+            <!-- DATE AND TIME -->
+            <div class="form-group">
+
+                <label for="lostTime">
+                    Date and Time Lost
+                </label>
+
+                <input
+                    type="datetime-local"
+                    id="lostTime"
+                    required
+                >
+
+            </div>
+
+
+            <!-- IMAGE -->
+            <div class="form-group">
+
+                <label for="image">
+                    Item Image
+                </label>
+
+                <input
+                    type="file"
+                    id="image"
+                    accept="image/jpeg,image/png,image/gif,image/webp,image/bmp"
+                    required
+                >
+
+            </div>
+
+
+            <!-- SUBMIT -->
+            <button
+                type="submit"
+                id="submitButton"
+            >
+                Submit Lost Item Report
+            </button>
+
+        </form>
+
+
+        <!-- MESSAGE -->
+        <div id="message"></div>
+
+    </div>
+
+
+    <script src="/js/auth.js"></script>
+    <script>
+        if (!requireAuth()) {
+            document.getElementById('authRequired').style.display = 'block';
+            document.getElementById('content').style.display = 'none';
+        }
+
+        const form =
+            document.getElementById("lostItemForm");
+
+        const message =
+            document.getElementById("message");
+
+        const submitButton =
+            document.getElementById("submitButton");
+
+
+        form.addEventListener(
+            "submit",
+            async function(event) {
+
+                event.preventDefault();
+
+                // Disable button while submitting
+                submitButton.disabled = true;
+
+                submitButton.textContent =
+                    "Submitting...";
+
+
+                // Get values
+                const title =
+                    document.getElementById("title").value;
+
+                const description =
+                    document.getElementById("description").value;
+
+                const location =
+                    document.getElementById("location").value;
+
+                const lostTime =
+                    document.getElementById("lostTime").value;
+
+                const image =
+                    document.getElementById("image").files[0];
+
+
+                // Check image
+                if (!image) {
+
+                    showMessage(
+                        "Please select an image.",
+                        false
+                    );
+
+                    resetButton();
+
+                    return;
+                }
+
+
+                // Check image size
+                if (image.size > 5 * 1024 * 1024) {
+
+                    showMessage(
+                        "Image must be smaller than 5 MB.",
+                        false
+                    );
+
+                    resetButton();
+
+                    return;
+                }
+
+
+                // Create FormData
+                const formData =
+                    new FormData();
+
+
+                // Temporary demo user
+                formData.append(
+                    "user_id",
+                    "5"
+                );
+
+                formData.append(
+                    "title",
+                    title
+                );
+
+                formData.append(
+                    "description",
+                    description
+                );
+
+                formData.append(
+                    "location",
+                    location
+                );
+
+                formData.append(
+                    "lost_time",
+                    lostTime
+                );
+
+                formData.append(
+                    "image",
+                    image
+                );
+
+
+                try {
+
+                    const response =
+                        await makeAuthenticatedRequest(
+                            "/api/lost-items",
+                            {
+                                method: "POST",
+                                body: formData
+                            }
+                        );
+
+
+                    const data =
+                        await response.json();
+
+
+                    if (response.ok && data.success) {
+
+                        showMessage(
+                            "Lost item reported successfully! Item ID: " + data.item_id,
+                            true
+                        );
+
+                        form.reset();
+
+                    } else {
+
+                        showMessage(
+                            data.message ||
+                            "Failed to report lost item.",
+                            false
+                        );
+
+                    }
+
+                } catch (error) {
+
+                    console.error(
+                        "Error:",
+                        error
+                    );
+
+                    showMessage(
+                        "Unable to connect to the server.",
+                        false
+                    );
+
+                }
+
+
+                resetButton();
+
+            }
+        );
+
+        function showMessage(text, success) {
+
+            message.style.display = "block";
+
+            message.textContent = text;
+
+            if (success) {
+
+                message.style.background =
+                    "#dcfce7";
+
+                message.style.color =
+                    "#166534";
+
+            } else {
+
+                message.style.background =
+                    "#fee2e2";
+
+                message.style.color =
+                    "#991b1b";
+
+            }
+
+        }
+
+        function resetButton() {
+
+            submitButton.disabled = false;
+
+            submitButton.textContent =
+                "Submit Lost Item Report";
+
+        }
+
+    </script>
+
+</body>
+</html>

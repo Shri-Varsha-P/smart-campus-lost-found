@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Smart Campus Lost & Found</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f7fb;
+            color: #1f2937;
+        }
+
+        header {
+            background: #1e3a8a;
+            color: white;
+            padding: 20px 60px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        header h1 {
+            font-size: 24px;
+        }
+
+        nav a {
+            color: white;
+            text-decoration: none;
+            margin-left: 25px;
+            font-size: 15px;
+        }
+
+        nav a:hover {
+            text-decoration: underline;
+        }
+
+        .hero {
+            background: white;
+            text-align: center;
+            padding: 70px 20px;
+        }
+
+        .hero h2 {
+            font-size: 40px;
+            margin-bottom: 15px;
+            color: #1e3a8a;
+        }
+
+        .hero p {
+            font-size: 18px;
+            color: #6b7280;
+            margin-bottom: 30px;
+        }
+
+        .buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 13px 25px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .primary {
+            background: #1e3a8a;
+            color: white;
+        }
+
+        .secondary {
+            border: 2px solid #1e3a8a;
+            color: #1e3a8a;
+        }
+
+        .card .btn {
+            margin-top: 15px;
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .modules {
+            padding: 50px 60px;
+            text-align: center;
+        }
+
+        .modules h2 {
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 25px;
+            max-width: 1000px;
+            margin: auto;
+        }
+
+        .card {
+            background: white;
+            padding: 30px 20px;
+            border-radius: 10px;
+            box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .card h3 {
+            margin-bottom: 12px;
+            color: #1e3a8a;
+        }
+
+        .card p {
+            color: #6b7280;
+            line-height: 1.5;
+        }
+
+        footer {
+            background: #111827;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            margin-top: 30px;
+        }
+
+        @media (max-width: 768px) {
+            header {
+                padding: 20px;
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .cards {
+                grid-template-columns: 1fr;
+            }
+
+            .modules {
+                padding: 40px 20px;
+            }
+
+            .hero h2 {
+                font-size: 30px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>Smart Campus Lost & Found</h1>
+
+        <nav>
+            <a href="/">Home</a>
+            <a href="/report-lost.html">Report Lost Item</a>
+            <a href="/report-found.html">Report Found Item</a>
+            <a href="/browse-lost-items.html">Lost Items</a>
+            <a href="/browse-found-items.html">Found Items</a>
+            <a href="/claims.html" id="claimsLink">My Claims</a>
+            <a href="/assets.html">Assets</a>
+            <a href="/register-asset.html" id="registerAssetLink" style="display: none;">Register Asset (Admin)</a>
+            <a href="/notifications.html">Notifications</a>
+            <a href="/admin.html" id="adminLink" style="display: none;">Admin</a>
+            <a href="/login.html" id="loginLink">Login</a>
+            <a href="/signup.html" id="signupLink">Sign Up</a>
+            <a href="#" id="logoutLink" style="display: none;" onclick="logout()">Logout</a>
+            <span id="userInfo" style="color: white; margin-left: 20px; display: none;"></span>
+        </nav>
+    </header>
+
+    <script src="/js/auth.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const user = getCurrentUser();
+            const registerAssetLink = document.getElementById('registerAssetLink');
+            const adminLink = document.getElementById('adminLink');
+            
+            if (user) {
+                if (user.role === 'admin') {
+                    registerAssetLink.style.display = 'inline';
+                    adminLink.style.display = 'inline';
+                } else if (user.role === 'security') {
+                    adminLink.style.display = 'inline';
+                }
+            }
+        });
+    </script>
+
+
+    <section class="hero">
+
+        <h2>Find What You've Lost</h2>
+
+        <p>
+            A smart campus platform to report, discover and recover
+            lost items and institutional assets.
+        </p>
+
+        <div class="buttons">
+            <a href="/report-lost.html" class="btn primary">Report Lost Item</a>
+            <a href="/report-found.html" class="btn secondary">Report Found Item</a>
+            <a href="/browse-lost-items.html" class="btn secondary">Browse Lost Items</a>
+            <a href="/browse-found-items.html" class="btn secondary">Browse Found Items</a>
+        </div>
+
+    </section>
+
+
+    <section class="modules">
+
+        <h2>System Modules</h2>
+
+        <div class="cards">
+
+            <div class="card">
+                <h3>Personal Lost Items</h3>
+                <p>
+                    Report personal belongings that you have lost
+                    around the campus.
+                </p>
+            </div>
+
+            <div class="card">
+                <h3>Community Claims</h3>
+                <p>
+                    Submit ownership claims for found items
+                    that may belong to you.
+                </p>
+                <a href="/claims.html" class="btn secondary">My Claims</a>
+            </div>
+
+            <div class="card">
+                <h3>Institutional Assets</h3>
+                <p>
+                    Track and manage college-owned equipment
+                    and other institutional assets.
+                </p>
+            </div>
+
+            <div class="card">
+                <h3>QR Asset Identification</h3>
+                <p>
+                    Identify registered institutional assets
+                    using their unique QR codes.
+                </p>
+            </div>
+
+            <div class="card">
+                <h3>Notifications</h3>
+                <p>
+                    Receive updates about claims, recovered items
+                    and asset reports.
+                </p>
+            </div>
+
+            <div class="card">
+                <h3>Secure Management</h3>
+                <p>
+                    Role-based access helps students, security
+                    personnel and administrators manage the system.
+                </p>
+                <a href="/admin.html" class="btn secondary">Admin Dashboard</a>
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <footer>
+        <p>Smart Campus Lost & Found System</p>
+    </footer>
+
+</body>
+</html>

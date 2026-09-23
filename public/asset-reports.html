@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asset Reports</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f7fb;
+            color: #1f2937;
+        }
+
+        header {
+            background: #1e3a8a;
+            color: white;
+            padding: 20px 60px;
+        }
+
+        header h1 {
+            font-size: 24px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 45px auto;
+            padding: 0 20px;
+        }
+
+        .back {
+            display: inline-block;
+            margin-bottom: 25px;
+            color: #1e3a8a;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        h2 {
+            color: #1e3a8a;
+            margin-bottom: 10px;
+        }
+
+        .description {
+            color: #6b7280;
+            margin-bottom: 30px;
+        }
+
+        .actions {
+            margin-bottom: 30px;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 13px 25px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .primary {
+            background: #1e3a8a;
+            color: white;
+        }
+
+        .reports-list {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .report-card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .report-asset {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1e3a8a;
+        }
+
+        .report-asset-id {
+            font-size: 13px;
+            color: #6b7280;
+            margin-bottom: 10px;
+        }
+
+        .report-location {
+            color: #6b7280;
+            margin-bottom: 8px;
+        }
+
+        .report-description {
+            color: #6b7280;
+            line-height: 1.5;
+            margin-bottom: 15px;
+        }
+
+        .report-meta {
+            color: #9ca3af;
+            font-size: 13px;
+        }
+
+        .no-reports {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6b7280;
+        }
+
+        .no-reports h3 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6b7280;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            max-width: 500px;
+            margin: 100px auto;
+            padding: 30px;
+            border-radius: 10px;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h3 {
+            color: #1e3a8a;
+        }
+
+        .close {
+            font-size: 24px;
+            cursor: pointer;
+            color: #6b7280;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+        }
+
+        .form-group textarea {
+            height: 80px;
+            resize: vertical;
+        }
+
+        .form-group button {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            background: #1e3a8a;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        @media (max-width: 768px) {
+            header {
+                padding: 20px;
+            }
+
+            .container {
+                margin: 30px auto;
+            }
+
+            .report-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Smart Campus Lost & Found</h1>
+    </header>
+
+    <div class="container">
+        <a href="/assets.html" class="back">← Back to Assets</a>
+
+        <h2>Asset Reports</h2>
+        <p class="description">Reports of lost or found institutional assets</p>
+
+        <div class="actions">
+            <button class="btn primary" onclick="openReportModal()">Submit Asset Report</button>
+        </div>
+
+        <div id="reportsContainer" class="reports-list">
+            <div class="loading">Loading reports...</div>
+        </div>
+    </div>
+
+    <div id="reportModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Submit Asset Report</h3>
+                <span class="close" onclick="closeReportModal()">&times;</span>
+            </div>
+            <form id="reportForm">
+                <div class="form-group">
+                    <label for="assetId">Asset ID</label>
+                    <input type="number" id="assetId" required>
+                </div>
+                <div class="form-group">
+                    <label for="location">Location</label>
+                    <input type="text" id="location" placeholder="Where was the asset found/lost?">
+                </div>
+                <div class="form-group">
+                    <label for="foundTime">Date and Time Found/Lost</label>
+                    <input type="datetime-local" id="foundTime">
+                </div>
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <textarea id="description" placeholder="Additional details about the asset..."></textarea>
+                </div>
+                <div class="form-group">
+                    <button type="submit">Submit Report</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/auth.js"></script>
+    <script>
+        const reportsContainer = document.getElementById('reportsContainer');
+        const reportModal = document.getElementById('reportModal');
+        const reportForm = document.getElementById('reportForm');
+
+        if (!requireAuth()) {
+            return;
+        }
+
+        if (!requireRole(['admin', 'security'])) {
+            alert('Access denied. Admin or security role required.');
+            window.location.href = '/';
+            return;
+        }
+
+        fetch('/api/asset-reports')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.reports.length > 0) {
+                    displayReports(data.reports);
+                } else {
+                    reportsContainer.innerHTML = `
+                        <div class="no-reports">
+                            <h3>No asset reports yet</h3>
+                            <p>Submit a report when you find or lose an institutional asset.</p>
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                reportsContainer.innerHTML = `
+                    <div class="no-reports">
+                        <h3>Failed to load reports</h3>
+                        <p>Please try again later.</p>
+                    </div>
+                `;
+            });
+
+        function displayReports(reports) {
+            reportsContainer.innerHTML = reports.map(report => `
+                <div class="report-card">
+                    <div class="report-header">
+                        <div>
+                            <div class="report-asset">${report.asset_name || 'Unknown Asset'}</div>
+                            <div class="report-asset-id">Asset ID: ${report.asset_identifier || 'N/A'}</div>
+                        </div>
+                    </div>
+                    ${report.location ? `<div class="report-location">📍 ${report.location}</div>` : ''}
+                    ${report.description ? `<div class="report-description">${report.description}</div>` : ''}
+                    <div class="report-meta">
+                        Reported by ${report.reporter_name || 'Unknown'} on ${formatDate(report.created_at)}
+                        ${report.found_time ? ` • Found at ${formatDate(report.found_time)}` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function openReportModal() {
+            reportModal.style.display = 'block';
+        }
+
+        function closeReportModal() {
+            reportModal.style.display = 'none';
+            reportForm.reset();
+        }
+
+        reportForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const assetId = document.getElementById('assetId').value;
+            const location = document.getElementById('location').value;
+            const foundTime = document.getElementById('foundTime').value;
+            const description = document.getElementById('description').value;
+
+            try {
+                const response = await makeAuthenticatedRequest('/api/asset-reports', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        asset_id: assetId,
+                        location: location,
+                        found_time: foundTime,
+                        description: description
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('Asset report submitted successfully!');
+                    closeReportModal();
+                    location.reload();
+                } else {
+                    alert(data.message || 'Failed to submit report.');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Unable to connect to the server.');
+            }
+        });
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleString();
+        }
+
+        window.onclick = function(event) {
+            if (event.target === reportModal) {
+                closeReportModal();
+            }
+        }
+    </script>
+</body>
+</html>
