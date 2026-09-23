@@ -1235,8 +1235,19 @@ app.put("/api/assets/:id/status", authenticateToken, checkAssetAdminRole, (req, 
     const params = [status];
 
     if (lost_at && status === 'Lost') {
+        const date = new Date(lost_at);
+
+        if (isNaN(date.getTime())) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid lost_at datetime."
+            });
+        }
+
+        const mysqlDateTime = date.toISOString().slice(0, 19).replace('T', ' ');
+
         sql += ", lost_at = ?";
-        params.push(lost_at);
+        params.push(mysqlDateTime);
     } else if (status === 'Available' || status === 'Recovered') {
         sql += ", lost_at = NULL";
     }
