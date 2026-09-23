@@ -20,14 +20,9 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
 const uploadDir = path.join(__dirname, "uploads");
-const qrDir = path.join(__dirname, "qr-codes");
 
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir);
-}
-
-if (!fs.existsSync(qrDir)) {
-    fs.mkdirSync(qrDir);
 }
 
 const storage = multer.diskStorage({
@@ -75,7 +70,6 @@ const upload = multer({
 });
 
 app.use("/uploads", express.static(uploadDir));
-app.use("/qr-codes", express.static(qrDir));
 
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
@@ -241,10 +235,15 @@ function notifyAdmins(title, message) {
 
 const db = mysql.createPool({
     host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
+    port: process.env.DB_PORT || 3306,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME
+    database: process.env.DB_NAME,
+    ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+    connectionLimit: 10,
+    waitForConnections: true,
+    queueLimit: 0,
+    connectTimeout: 10000
 });
 db.getConnection((err, connection) => {
     if (err) {
@@ -835,12 +834,9 @@ app.post("/api/assets", authenticateToken, checkAssetAdminRole, async (req, res)
     try {
         const serverUrl = process.env.SERVER_URL || `http://localhost:${process.env.PORT || 5000}`;
         const qrUrl = `${serverUrl}/asset/${asset_id}`;
-        const qrFileName = `${asset_id}.png`;
-        const qrFilePath = path.join(qrDir, qrFileName);
 
-        await qrcode.toFile(qrFilePath, qrUrl);
-
-        const qrCodeUrl = `/qr-codes/${qrFileName}`;
+        // Store QR URL instead of file path - QR will be generated dynamically
+        const qrCodeUrl = `/api/qr/${asset_id}`;
 
         const sql = `
             INSERT INTO institutional_assets (asset_id, name, department, status, qr_code)
@@ -865,10 +861,10 @@ app.post("/api/assets", authenticateToken, checkAssetAdminRole, async (req, res)
             });
         });
     } catch (error) {
-        console.log("Error generating QR code:", error.message);
+        console.log("Error creating asset:", error.message);
         return res.status(500).json({
             success: false,
-            message: "Failed to generate QR code."
+            message: "Failed to create asset."
         });
     }
 });
@@ -1218,6 +1214,24 @@ app.get("/asset/:assetId", (req, res) => {
             `);
         }
     });
+});
+
+app.get("/api/qr/:assetId", async (req, res) => {
+    const assetId = req.params.assetId;
+
+    try {
+        const serverUrl = process.env.SERVER_URL || `http://localhost:${process.env.PORT || 5000}`;
+        const qrUrl = `${serverUrl}/asset/${assetId}`;
+
+        const qrCode = await qrcode.toBuffer(qrUrl);
+
+        res.setHeader('Content-Type', 'image/png');
+        res.setHeader('Content-Disposition', `attachment; filename="qr-${assetId}.png"`);
+        res.send(qrCode);
+    } catch (error) {
+        console.log("Error generating QR code:", error.message);
+        res.status(500).send("Error generating QR code.");
+    }
 });
 
 app.put("/api/assets/:id/status", authenticateToken, checkAssetAdminRole, (req, res) => {
@@ -1764,15 +1778,21 @@ app.use((err, req, res, next) => {
     next();
 });
 
-app.listen(
-    process.env.PORT || 5000,
-    '0.0.0.0',
-    () => {
-        console.log(
-            "Server running at http://localhost:5000"
-        );
-        console.log(
-            "For phone scanning, set SERVER_URL in .env to your LAN IP (e.g., http://192.168.1.X:5000)"
-        );
-    }
-);
+// Export app for Vercel
+module.exports = app;
+
+// Only listen if running locally (not on Vercel)
+if (require.main === module) {
+    app.listen(
+        process.env.PORT || 5000,
+        '0.0.0.0',
+        () => {
+            console.log(
+                "Server running at http://localhost:5000"
+            );
+            console.log(
+                "For phone scanning, set SERVER_URL in .env to your LAN IP (e.g., http://192.168.1.X:5000)"
+            );
+        }
+    );
+}
