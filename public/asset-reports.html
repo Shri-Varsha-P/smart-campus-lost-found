@@ -290,9 +290,14 @@
         }
 
         fetch('/api/asset-reports')
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
-                if (data.success && data.reports.length > 0) {
+                if (data.success && Array.isArray(data.reports) && data.reports.length > 0) {
                     displayReports(data.reports);
                 } else {
                     reportsContainer.innerHTML = `
@@ -314,22 +319,32 @@
             });
 
         function displayReports(reports) {
-            reportsContainer.innerHTML = reports.map(report => `
-                <div class="report-card">
-                    <div class="report-header">
-                        <div>
-                            <div class="report-asset">${report.asset_name || 'Unknown Asset'}</div>
-                            <div class="report-asset-id">Asset ID: ${report.asset_identifier || 'N/A'}</div>
+            try {
+                reportsContainer.innerHTML = reports.map(report => `
+                    <div class="report-card">
+                        <div class="report-header">
+                            <div>
+                                <div class="report-asset">${report.asset_name || 'Unknown Asset'}</div>
+                                <div class="report-asset-id">Asset ID: ${report.asset_identifier || 'N/A'}</div>
+                            </div>
+                        </div>
+                        ${report.location ? `<div class="report-location">📍 ${report.location}</div>` : ''}
+                        ${report.description ? `<div class="report-description">${report.description}</div>` : ''}
+                        <div class="report-meta">
+                            Reported by ${report.reporter_name || 'Unknown'} on ${formatDate(report.created_at)}
+                            ${report.found_time ? ` • Found at ${formatDate(report.found_time)}` : ''}
                         </div>
                     </div>
-                    ${report.location ? `<div class="report-location">📍 ${report.location}</div>` : ''}
-                    ${report.description ? `<div class="report-description">${report.description}</div>` : ''}
-                    <div class="report-meta">
-                        Reported by ${report.reporter_name || 'Unknown'} on ${formatDate(report.created_at)}
-                        ${report.found_time ? ` • Found at ${formatDate(report.found_time)}` : ''}
+                `).join('');
+            } catch (error) {
+                console.error('Error displaying reports:', error);
+                reportsContainer.innerHTML = `
+                    <div class="no-reports">
+                        <h3>Error displaying reports</h3>
+                        <p>Please try again later.</p>
                     </div>
-                </div>
-            `).join('');
+                `;
+            }
         }
 
         function openReportModal() {

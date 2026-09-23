@@ -378,11 +378,17 @@
                 lost_at: lost_at
             })
         })
-        .then(response => {
+        .then(async response => {
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
+                // Try to get error message from response body
+                try {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `HTTP ${response.status}`);
+                } catch (e) {
+                    // If response body is not JSON, fall back to status code
+                    throw new Error(`HTTP ${response.status}`);
+                }
             }
-
             return response.json();
         })
         .then(data => {
@@ -395,7 +401,15 @@
         })
         .catch(error => {
             console.error('Error marking asset as lost:', error);
-            alert('Unable to connect to the server.');
+            if (error.message === 'Not authenticated') {
+                // Auth errors are handled by makeAuthenticatedRequest which redirects
+                return;
+            } else if (error.message && error.message.startsWith('HTTP')) {
+                // HTTP error - try to get more specific error from response
+                alert(`Server error: ${error.message}. Please try again.`);
+            } else {
+                alert('Unable to connect to the server. Please check your connection and try again.');
+            }
         });
     }
 

@@ -65,7 +65,7 @@ function makeAuthenticatedRequest(url, options = {}) {
     const token = getToken();
     if (!token) {
         window.location.href = '/login.html';
-        return Promise.reject('Not authenticated');
+        return Promise.reject(new Error('Not authenticated'));
     }
     
     const headers = options.headers || {};
