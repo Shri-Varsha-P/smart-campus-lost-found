@@ -1423,6 +1423,70 @@ app.get("/api/asset-reports/:id/asset", (req, res) => {
     });
 });
 
+app.put("/api/asset-reports/:id/found", authenticateToken, checkAssetAdminRole, (req, res) => {
+    const reportId = req.params.id;
+
+    // First get the asset_id from the report
+    const sql = `
+        SELECT asset_reports.asset_id, institutional_assets.status
+        FROM asset_reports
+        LEFT JOIN institutional_assets ON asset_reports.asset_id = institutional_assets.id
+        WHERE asset_reports.id = ?
+    `;
+
+    db.query(sql, [reportId], (err, results) => {
+        if (err) {
+            console.log("Error fetching report:", err.message);
+            return res.status(500).json({
+                success: false,
+                message: "Failed to fetch report."
+            });
+        }
+
+        if (results.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Report not found."
+            });
+        }
+
+        const report = results[0];
+        const assetId = report.asset_id;
+
+        if (report.status === 'Recovered') {
+            return res.status(400).json({
+                success: false,
+                message: "Asset is already recovered."
+            });
+        }
+
+        // Update the asset status to Recovered
+        const updateSql = "UPDATE institutional_assets SET status = 'Recovered', lost_at = NULL WHERE id = ?";
+        
+        db.query(updateSql, [assetId], (err, result) => {
+            if (err) {
+                console.log("Error updating asset status:", err.message);
+                return res.status(500).json({
+                    success: false,
+                    message: "Failed to update asset status."
+                });
+            }
+
+            if (result.affectedRows === 0) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Asset not found."
+                });
+            }
+
+            res.json({
+                success: true,
+                message: "Asset marked as found successfully!"
+            });
+        });
+    });
+});
+
 app.get("/api/notifications", (req, res) => {
     const { user_id } = req.query;
 
@@ -1436,7 +1500,8 @@ app.get("/api/notifications", (req, res) => {
     const sql = `
         SELECT notifications.*, 
                asset_reports.asset_id,
-               institutional_assets.name AS asset_name
+               institutional_assets.name AS asset_name,
+               institutional_assets.status AS asset_status
         FROM notifications
         LEFT JOIN asset_reports ON notifications.report_id = asset_reports.id
         LEFT JOIN institutional_assets ON asset_reports.asset_id = institutional_assets.id

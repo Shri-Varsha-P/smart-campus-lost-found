@@ -326,7 +326,7 @@
                 }
 
                 ${
-                    isAdmin && asset.status === 'Available'
+                    isAdmin && (asset.status === 'Available' || asset.status === 'Recovered')
                         ? `
                             <button
                                 class="mark-lost-btn"

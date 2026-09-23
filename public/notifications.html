@@ -94,6 +94,37 @@
             font-size: 13px;
         }
 
+        .notification-actions {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .found-btn {
+            padding: 8px 16px;
+            background: #166534;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .found-btn:hover {
+            background: #14532d;
+        }
+
+        .found-btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        .found-btn.completed {
+            background: #059669;
+            cursor: default;
+        }
+
         .no-notifications {
             text-align: center;
             padding: 60px 20px;
@@ -148,6 +179,7 @@
     <script>
         const notificationsContainer = document.getElementById('notificationsContainer');
         const currentUser = getCurrentUser();
+        const isAdmin = currentUser && (currentUser.role === 'admin' || currentUser.role === 'security');
 
         if (!requireAuth()) {
             window.location.href = '/login.html';
@@ -183,7 +215,9 @@
         function displayNotifications(notifications) {
             notificationsContainer.innerHTML = notifications.map(notification => `
                 <div class="notification-card ${!notification.is_read ? 'unread' : ''}"
-                     onclick="handleNotificationClick(${notification.id}, ${notification.report_id})">
+                     data-notification-id="${notification.id}"
+                     data-report-id="${notification.report_id || ''}"
+                     data-asset-status="${notification.asset_status || ''}">
 
                     <div class="notification-title">
                         ${notification.title}
@@ -197,24 +231,85 @@
                         ${formatDate(notification.created_at)}
                     </div>
 
+                    ${notification.report_id && isAdmin ? `
+                        <div class="notification-actions">
+                            ${notification.asset_status === 'Lost' ? `
+                                <button class="found-btn" 
+                                        onclick="markAsFound(event, ${notification.report_id}, ${notification.id})">
+                                    Found
+                                </button>
+                            ` : `
+                                <button class="found-btn completed" disabled>
+                                    Found ✓
+                                </button>
+                            `}
+                        </div>
+                    ` : ''}
+
                 </div>
             `).join('');
+
+            // Add click handlers for non-report notifications
+            document.querySelectorAll('.notification-card').forEach(card => {
+                card.addEventListener('click', function(e) {
+                    const reportId = this.getAttribute('data-report-id');
+                    if (!reportId) {
+                        const notificationId = this.getAttribute('data-notification-id');
+                        handleNotificationClick(notificationId);
+                    }
+                });
+            });
         }
 
-        async function handleNotificationClick(notificationId, reportId) {
+        async function handleNotificationClick(notificationId) {
             try {
                 await fetch(`/api/notifications/${notificationId}/read`, {
                     method: 'PUT'
                 });
-
-                if (reportId) {
-                    window.location.href = `/asset-reports.html?reportId=${reportId}`;
-                } else {
-                    location.reload();
-                }
-
+                location.reload();
             } catch (error) {
                 console.error('Error handling notification click:', error);
+            }
+        }
+
+        async function markAsFound(event, reportId, notificationId) {
+            event.stopPropagation(); // Prevent the card click handler
+
+            const button = event.target;
+            if (button.disabled) return;
+
+            const originalText = button.textContent;
+            button.disabled = true;
+            button.textContent = 'Processing...';
+
+            try {
+                const response = await makeAuthenticatedRequest(`/api/asset-reports/${reportId}/found`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    button.textContent = 'Found ✓';
+                    button.classList.add('completed');
+                    
+                    // Mark the notification as read
+                    await fetch(`/api/notifications/${notificationId}/read`, {
+                        method: 'PUT'
+                    });
+                } else {
+                    alert(data.message || 'Failed to mark asset as found.');
+                    button.disabled = false;
+                    button.textContent = originalText;
+                }
+            } catch (error) {
+                console.error('Error marking as found:', error);
+                alert('Unable to connect to the server.');
+                button.disabled = false;
+                button.textContent = originalText;
             }
         }
 
