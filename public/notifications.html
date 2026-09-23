@@ -1,9 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Notifications</title>
+
     <style>
         * {
             box-sizing: border-box;
@@ -122,61 +124,79 @@
 </head>
 
 <body>
+
     <header>
         <h1>Smart Campus Lost & Found</h1>
     </header>
 
     <div class="container">
+
         <a href="/" class="back">← Back to Home</a>
 
         <h2>Notifications</h2>
+
         <p class="description">Stay updated on your claims and items</p>
 
         <div id="notificationsContainer" class="notifications-list">
             <div class="loading">Loading notifications...</div>
         </div>
+
     </div>
 
     <script src="/js/auth.js"></script>
+
     <script>
         const notificationsContainer = document.getElementById('notificationsContainer');
         const currentUser = getCurrentUser();
 
         if (!requireAuth()) {
-            return;
+            window.location.href = '/login.html';
         }
 
         if (currentUser) {
             fetch(`/api/notifications?user_id=${currentUser.id}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success && data.notifications.length > 0) {
-                    displayNotifications(data.notifications);
-                } else {
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.notifications.length > 0) {
+                        displayNotifications(data.notifications);
+                    } else {
+                        notificationsContainer.innerHTML = `
+                            <div class="no-notifications">
+                                <h3>No notifications</h3>
+                                <p>You're all caught up!</p>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+
                     notificationsContainer.innerHTML = `
                         <div class="no-notifications">
-                            <h3>No notifications</h3>
-                            <p>You're all caught up!</p>
+                            <h3>Failed to load notifications</h3>
+                            <p>Please try again later.</p>
                         </div>
                     `;
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                notificationsContainer.innerHTML = `
-                    <div class="no-notifications">
-                        <h3>Failed to load notifications</h3>
-                        <p>Please try again later.</p>
-                    </div>
-                `;
-            });
+                });
+        }
 
         function displayNotifications(notifications) {
             notificationsContainer.innerHTML = notifications.map(notification => `
-                <div class="notification-card ${!notification.is_read ? 'unread' : ''}" onclick="handleNotificationClick(${notification.id}, ${notification.report_id})">
-                    <div class="notification-title">${notification.title}</div>
-                    <div class="notification-message">${notification.message}</div>
-                    <div class="notification-time">${formatDate(notification.created_at)}</div>
+                <div class="notification-card ${!notification.is_read ? 'unread' : ''}"
+                     onclick="handleNotificationClick(${notification.id}, ${notification.report_id})">
+
+                    <div class="notification-title">
+                        ${notification.title}
+                    </div>
+
+                    <div class="notification-message">
+                        ${notification.message}
+                    </div>
+
+                    <div class="notification-time">
+                        ${formatDate(notification.created_at)}
+                    </div>
+
                 </div>
             `).join('');
         }
@@ -186,12 +206,13 @@
                 await fetch(`/api/notifications/${notificationId}/read`, {
                     method: 'PUT'
                 });
-                
+
                 if (reportId) {
                     window.location.href = `/asset-reports.html?reportId=${reportId}`;
                 } else {
                     location.reload();
                 }
+
             } catch (error) {
                 console.error('Error handling notification click:', error);
             }
@@ -202,5 +223,7 @@
             return date.toLocaleString();
         }
     </script>
+
 </body>
+
 </html>
