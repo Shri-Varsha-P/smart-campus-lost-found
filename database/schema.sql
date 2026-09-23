@@ -63,8 +63,10 @@ CREATE TABLE IF NOT EXISTS notifications (
     title VARCHAR(150) NOT NULL,
     message TEXT NOT NULL,
     is_read BOOLEAN DEFAULT FALSE,
+    report_id INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (report_id) REFERENCES asset_reports(id)
 );
 
 CREATE TABLE IF NOT EXISTS found_items (

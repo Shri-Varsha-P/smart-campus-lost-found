@@ -55,6 +55,68 @@
             margin-bottom: 30px;
         }
 
+        .specific-report {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .report-detail {
+            margin-bottom: 20px;
+        }
+
+        .report-detail-label {
+            font-weight: bold;
+            color: #374151;
+            margin-bottom: 5px;
+        }
+
+        .report-detail-value {
+            color: #6b7280;
+            line-height: 1.5;
+        }
+
+        .mark-found-btn {
+            width: 100%;
+            padding: 15px;
+            background: #166534;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        .mark-found-btn:hover {
+            background: #14532d;
+        }
+
+        .mark-found-btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        .asset-recovered-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            background: #dbeafe;
+            color: #1e40af;
+            border-radius: 6px;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+
+        .back-to-list {
+            display: inline-block;
+            margin-top: 20px;
+            color: #1e3a8a;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
         .btn {
             display: inline-block;
             padding: 13px 25px;
@@ -289,34 +351,79 @@
             return;
         }
 
-        fetch('/api/asset-reports')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.success && Array.isArray(data.reports) && data.reports.length > 0) {
-                    displayReports(data.reports);
-                } else {
+        // Check if viewing a specific report
+        const urlParams = new URLSearchParams(window.location.search);
+        const reportId = urlParams.get('reportId');
+
+        if (reportId) {
+            loadSpecificReport(reportId);
+        } else {
+            loadAllReports();
+        }
+
+        function loadAllReports() {
+            fetch('/api/asset-reports')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success && Array.isArray(data.reports) && data.reports.length > 0) {
+                        displayReports(data.reports);
+                    } else {
+                        reportsContainer.innerHTML = `
+                            <div class="no-reports">
+                                <h3>No asset reports yet</h3>
+                                <p>Submit a report when you find or lose an institutional asset.</p>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
                     reportsContainer.innerHTML = `
                         <div class="no-reports">
-                            <h3>No asset reports yet</h3>
-                            <p>Submit a report when you find or lose an institutional asset.</p>
+                            <h3>Failed to load reports</h3>
+                            <p>Please try again later.</p>
                         </div>
                     `;
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                reportsContainer.innerHTML = `
-                    <div class="no-reports">
-                        <h3>Failed to load reports</h3>
-                        <p>Please try again later.</p>
-                    </div>
-                `;
-            });
+                });
+        }
+
+        function loadSpecificReport(reportId) {
+            makeAuthenticatedRequest(`/api/asset-reports/${reportId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        displaySpecificReport(data.report);
+                    } else {
+                        reportsContainer.innerHTML = `
+                            <div class="no-reports">
+                                <h3>Report not found</h3>
+                                <p>The requested report could not be found.</p>
+                                <a href="/asset-reports.html" class="back-to-list">← Back to all reports</a>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    reportsContainer.innerHTML = `
+                        <div class="no-reports">
+                            <h3>Failed to load report</h3>
+                            <p>Please try again later.</p>
+                            <a href="/asset-reports.html" class="back-to-list">← Back to all reports</a>
+                        </div>
+                    `;
+                });
+        }
 
         function displayReports(reports) {
             try {
@@ -344,6 +451,130 @@
                         <p>Please try again later.</p>
                     </div>
                 `;
+            }
+        }
+
+        function displaySpecificReport(report) {
+            const isAssetLost = report.asset_status === 'Lost';
+            const currentUser = getCurrentUser();
+            const isAdmin = currentUser && currentUser.role === 'admin';
+
+            reportsContainer.innerHTML = `
+                <div class="specific-report">
+                    <a href="/asset-reports.html" class="back-to-list">← Back to all reports</a>
+                    
+                    <h2 style="color: #1e3a8a; margin-top: 20px; margin-bottom: 20px;">Finder Report Details</h2>
+                    
+                    <div class="report-detail">
+                        <div class="report-detail-label">Asset Name</div>
+                        <div class="report-detail-value">${report.asset_name || 'Unknown Asset'}</div>
+                    </div>
+                    
+                    <div class="report-detail">
+                        <div class="report-detail-label">Asset ID</div>
+                        <div class="report-detail-value">${report.asset_identifier || 'N/A'}</div>
+                    </div>
+                    
+                    <div class="report-detail">
+                        <div class="report-detail-label">Department</div>
+                        <div class="report-detail-value">${report.asset_department || 'N/A'}</div>
+                    </div>
+                    
+                    <div class="report-detail">
+                        <div class="report-detail-label">Current Asset Status</div>
+                        <div class="report-detail-value" style="font-weight: bold; color: ${report.asset_status === 'Lost' ? '#991b1b' : '#166534'}">
+                            ${report.asset_status || 'Unknown'}
+                        </div>
+                    </div>
+                    
+                    ${report.location ? `
+                        <div class="report-detail">
+                            <div class="report-detail-label">Location Found</div>
+                            <div class="report-detail-value">${report.location}</div>
+                        </div>
+                    ` : ''}
+                    
+                    ${report.found_time ? `
+                        <div class="report-detail">
+                            <div class="report-detail-label">Date and Time Found</div>
+                            <div class="report-detail-value">${formatDate(report.found_time)}</div>
+                        </div>
+                    ` : ''}
+                    
+                    ${report.description ? `
+                        <div class="report-detail">
+                            <div class="report-detail-label">Description</div>
+                            <div class="report-detail-value">${report.description}</div>
+                        </div>
+                    ` : ''}
+                    
+                    <div class="report-detail">
+                        <div class="report-detail-label">Reporter</div>
+                        <div class="report-detail-value">${report.reporter_name || 'Unknown'}</div>
+                    </div>
+                    
+                    <div class="report-detail">
+                        <div class="report-detail-label">Report Submitted</div>
+                        <div class="report-detail-value">${formatDate(report.created_at)}</div>
+                    </div>
+                    
+                    ${isAdmin && isAssetLost ? `
+                        <button class="mark-found-btn" onclick="markAsFound(${report.asset_id}, ${report.id})">
+                            Mark as Found
+                        </button>
+                    ` : ''}
+                    
+                    ${isAdmin && !isAssetLost ? `
+                        <div class="asset-recovered-badge">
+                            Asset Already ${report.asset_status}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        async function markAsFound(assetId, reportId) {
+            if (!confirm('Mark this asset as Found/Recovered? This will update the asset status to Recovered.')) {
+                return;
+            }
+
+            const button = document.querySelector('.mark-found-btn');
+            if (button) {
+                button.disabled = true;
+                button.textContent = 'Processing...';
+            }
+
+            try {
+                const response = await makeAuthenticatedRequest(`/api/assets/${assetId}/status`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        status: 'Recovered'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('Asset marked as Found/Recovered successfully!');
+                    // Reload the specific report to show updated status
+                    loadSpecificReport(reportId);
+                } else {
+                    alert(data.message || 'Failed to mark asset as Found.');
+                    if (button) {
+                        button.disabled = false;
+                        button.textContent = 'Mark as Found';
+                    }
+                }
+            } catch (error) {
+                console.error('Error marking as found:', error);
+                alert('Unable to connect to the server.');
+                if (button) {
+                    button.disabled = false;
+                    button.textContent = 'Mark as Found';
+                }
             }
         }
 

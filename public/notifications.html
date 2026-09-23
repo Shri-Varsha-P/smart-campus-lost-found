@@ -173,7 +173,7 @@
 
         function displayNotifications(notifications) {
             notificationsContainer.innerHTML = notifications.map(notification => `
-                <div class="notification-card ${!notification.is_read ? 'unread' : ''}" onclick="markAsRead(${notification.id})">
+                <div class="notification-card ${!notification.is_read ? 'unread' : ''}" onclick="handleNotificationClick(${notification.id}, ${notification.report_id})">
                     <div class="notification-title">${notification.title}</div>
                     <div class="notification-message">${notification.message}</div>
                     <div class="notification-time">${formatDate(notification.created_at)}</div>
@@ -181,14 +181,19 @@
             `).join('');
         }
 
-        async function markAsRead(notificationId) {
+        async function handleNotificationClick(notificationId, reportId) {
             try {
                 await fetch(`/api/notifications/${notificationId}/read`, {
                     method: 'PUT'
                 });
-                location.reload();
+                
+                if (reportId) {
+                    window.location.href = `/asset-reports.html?reportId=${reportId}`;
+                } else {
+                    location.reload();
+                }
             } catch (error) {
-                console.error('Error marking as read:', error);
+                console.error('Error handling notification click:', error);
             }
         }
 

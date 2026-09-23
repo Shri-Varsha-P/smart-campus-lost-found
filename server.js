@@ -188,20 +188,20 @@ function checkFoundPostOwnership(req, res, next) {
     });
 }
 
-function createNotification(userId, title, message) {
+function createNotification(userId, title, message, reportId = null) {
     const sql = `
-        INSERT INTO notifications (user_id, title, message, is_read)
-        VALUES (?, ?, ?, FALSE)
+        INSERT INTO notifications (user_id, title, message, is_read, report_id)
+        VALUES (?, ?, ?, FALSE, ?)
     `;
     
-    db.query(sql, [userId, title, message], (err, result) => {
+    db.query(sql, [userId, title, message, reportId], (err, result) => {
         if (err) {
             console.log("Error creating notification:", err.message);
         }
     });
 }
 
-function notifyAdmins(title, message) {
+function notifyAdmins(title, message, reportId = null) {
     const sql = "SELECT id FROM users WHERE role IN ('admin', 'security')";
     
     db.query(sql, (err, results) => {
@@ -211,7 +211,7 @@ function notifyAdmins(title, message) {
         }
         
         results.forEach(admin => {
-            createNotification(admin.id, title, message);
+            createNotification(admin.id, title, message, reportId);
         });
     });
 }
@@ -1308,12 +1308,13 @@ app.post("/api/asset-reports", authenticateToken, (req, res) => {
             });
         }
 
-        notifyAdmins('New Asset Report Submitted', `A finder report has been submitted for asset ID ${asset_id}.`);
+        const reportId = result.insertId;
+        notifyAdmins('New Asset Report Submitted', `A finder report has been submitted for asset ID ${asset_id}.`, reportId);
 
         res.status(201).json({
             success: true,
             message: "Asset report submitted successfully!",
-            report_id: result.insertId
+            report_id: reportId
         });
     });
 });
@@ -1324,6 +1325,7 @@ app.get("/api/asset-reports", (req, res) => {
             asset_reports.*,
             institutional_assets.name AS asset_name,
             institutional_assets.asset_id AS asset_identifier,
+            institutional_assets.status AS asset_status,
             users.name AS reporter_name
         FROM asset_reports
         LEFT JOIN institutional_assets ON asset_reports.asset_id = institutional_assets.id
@@ -1347,6 +1349,80 @@ app.get("/api/asset-reports", (req, res) => {
     });
 });
 
+app.get("/api/asset-reports/:id", (req, res) => {
+    const reportId = req.params.id;
+
+    const sql = `
+        SELECT
+            asset_reports.*,
+            institutional_assets.name AS asset_name,
+            institutional_assets.asset_id AS asset_identifier,
+            institutional_assets.status AS asset_status,
+            institutional_assets.department AS asset_department,
+            users.name AS reporter_name,
+            users.email AS reporter_email
+        FROM asset_reports
+        LEFT JOIN institutional_assets ON asset_reports.asset_id = institutional_assets.id
+        LEFT JOIN users ON asset_reports.reporter_id = users.id
+        WHERE asset_reports.id = ?
+    `;
+
+    db.query(sql, [reportId], (err, results) => {
+        if (err) {
+            console.log("Error fetching asset report:", err.message);
+            return res.status(500).json({
+                success: false,
+                message: "Failed to fetch asset report."
+            });
+        }
+
+        if (results.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Asset report not found."
+            });
+        }
+
+        res.json({
+            success: true,
+            report: results[0]
+        });
+    });
+});
+
+app.get("/api/asset-reports/:id/asset", (req, res) => {
+    const reportId = req.params.id;
+
+    const sql = `
+        SELECT institutional_assets.*
+        FROM asset_reports
+        LEFT JOIN institutional_assets ON asset_reports.asset_id = institutional_assets.id
+        WHERE asset_reports.id = ?
+    `;
+
+    db.query(sql, [reportId], (err, results) => {
+        if (err) {
+            console.log("Error fetching asset for report:", err.message);
+            return res.status(500).json({
+                success: false,
+                message: "Failed to fetch asset."
+            });
+        }
+
+        if (results.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Asset not found for this report."
+            });
+        }
+
+        res.json({
+            success: true,
+            asset: results[0]
+        });
+    });
+});
+
 app.get("/api/notifications", (req, res) => {
     const { user_id } = req.query;
 
@@ -1358,9 +1434,14 @@ app.get("/api/notifications", (req, res) => {
     }
 
     const sql = `
-        SELECT * FROM notifications
-        WHERE user_id = ?
-        ORDER BY created_at DESC
+        SELECT notifications.*, 
+               asset_reports.asset_id,
+               institutional_assets.name AS asset_name
+        FROM notifications
+        LEFT JOIN asset_reports ON notifications.report_id = asset_reports.id
+        LEFT JOIN institutional_assets ON asset_reports.asset_id = institutional_assets.id
+        WHERE notifications.user_id = ?
+        ORDER BY notifications.created_at DESC
     `;
 
     db.query(sql, [user_id], (err, results) => {
