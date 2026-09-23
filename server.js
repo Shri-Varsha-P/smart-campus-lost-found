@@ -19,33 +19,10 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use(express.static("public"));
 
-const uploadDir = path.join(__dirname, "uploads");
+// Upload directory handling removed for Vercel compatibility
+// Images now stored as Base64 in database instead of filesystem
 
-if (!fs.existsSync(uploadDir)) {
-    try {
-        fs.mkdirSync(uploadDir);
-    } catch (err) {
-        // Directory creation failed (e.g., read-only filesystem on Vercel)
-        // Uploads will not work, but app will continue to load
-        console.log("Could not create uploads directory:", err.message);
-    }
-}
-
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, uploadDir);
-    },
-
-    filename: function (req, file, cb) {
-        const uniqueName =
-            Date.now() +
-            "-" +
-            Math.round(Math.random() * 1000000000) +
-            path.extname(file.originalname);
-
-        cb(null, uniqueName);
-    }
-});
+const storage = multer.memoryStorage();
 
 const upload = multer({
     storage: storage,
@@ -75,7 +52,7 @@ const upload = multer({
     }
 });
 
-app.use("/uploads", express.static(uploadDir));
+// Static file serving for uploads removed - images now stored as Base64 in database
 
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
@@ -477,7 +454,10 @@ app.post(
         let imageUrl = null;
 
         if (req.file) {
-            imageUrl = "/uploads/" + req.file.filename;
+            // Convert buffer to Base64 data URL for Vercel compatibility
+            const base64Image = req.file.buffer.toString('base64');
+            const mimeType = req.file.mimetype;
+            imageUrl = `data:${mimeType};base64,${base64Image}`;
         }
 
         const lostDate = new Date(lost_time);
@@ -1482,7 +1462,10 @@ app.post(
         let imageUrl = null;
 
         if (req.file) {
-            imageUrl = "/uploads/" + req.file.filename;
+            // Convert buffer to Base64 data URL for Vercel compatibility
+            const base64Image = req.file.buffer.toString('base64');
+            const mimeType = req.file.mimetype;
+            imageUrl = `data:${mimeType};base64,${base64Image}`;
         }
 
         const sql = `
