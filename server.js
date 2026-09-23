@@ -22,7 +22,13 @@ app.use(express.static("public"));
 const uploadDir = path.join(__dirname, "uploads");
 
 if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir);
+    try {
+        fs.mkdirSync(uploadDir);
+    } catch (err) {
+        // Directory creation failed (e.g., read-only filesystem on Vercel)
+        // Uploads will not work, but app will continue to load
+        console.log("Could not create uploads directory:", err.message);
+    }
 }
 
 const storage = multer.diskStorage({
