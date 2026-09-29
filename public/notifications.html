@@ -217,7 +217,10 @@
                 <div class="notification-card ${!notification.is_read ? 'unread' : ''}"
                      data-notification-id="${notification.id}"
                      data-report-id="${notification.report_id || ''}"
-                     data-asset-status="${notification.asset_status || ''}">
+                     data-asset-status="${notification.asset_status || ''}"
+                     data-notification-type="${notification.notification_type || ''}"
+                     data-lost-item-id="${notification.lost_item_id || ''}"
+                     data-asset-id="${notification.asset_id || ''}">
 
                     <div class="notification-title">
                         ${notification.title}
@@ -234,7 +237,7 @@
                     ${notification.report_id && isAdmin ? `
                         <div class="notification-actions">
                             ${notification.asset_status === 'Lost' ? `
-                                <button class="found-btn" 
+                                <button class="found-btn"
                                         onclick="markAsFound(event, ${notification.report_id}, ${notification.id})">
                                     Found
                                 </button>
@@ -246,6 +249,18 @@
                         </div>
                     ` : ''}
 
+                    ${notification.notification_type === 'personal_lost_item' && notification.lost_item_id ? `
+                        <div class="notification-actions">
+                            <a href="/item-details.html?id=${notification.lost_item_id}" class="found-btn" style="text-decoration: none; display: inline-block; padding: 8px 16px; background: #1e3a8a; color: white; border-radius: 6px; font-size: 14px; font-weight: bold; cursor: pointer;">View Lost Item</a>
+                        </div>
+                    ` : ''}
+
+                    ${notification.notification_type === 'campus_asset_lost' && notification.asset_id ? `
+                        <div class="notification-actions">
+                            <a href="/asset.html?id=${notification.asset_id}" class="found-btn" style="text-decoration: none; display: inline-block; padding: 8px 16px; background: #1e3a8a; color: white; border-radius: 6px; font-size: 14px; font-weight: bold; cursor: pointer;">View Asset</a>
+                        </div>
+                    ` : ''}
+
                 </div>
             `).join('');
 
@@ -253,7 +268,8 @@
             document.querySelectorAll('.notification-card').forEach(card => {
                 card.addEventListener('click', function(e) {
                     const reportId = this.getAttribute('data-report-id');
-                    if (!reportId) {
+                    const notificationType = this.getAttribute('data-notification-type');
+                    if (!reportId && notificationType !== 'personal_lost_item' && notificationType !== 'campus_asset_lost') {
                         const notificationId = this.getAttribute('data-notification-id');
                         handleNotificationClick(notificationId);
                     }

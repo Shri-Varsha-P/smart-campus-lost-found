@@ -175,6 +175,7 @@
             <a href="/assets.html">Assets</a>
             <a href="/register-asset.html" id="registerAssetLink" style="display: none;">Register Asset (Admin)</a>
             <a href="/notifications.html">Notifications</a>
+            <a href="/notification-manager.html" id="notificationManagerLink" style="display: none;">Notification Manager</a>
             <a href="/admin.html" id="adminLink" style="display: none;">Admin</a>
             <a href="/login.html" id="loginLink">Login</a>
             <a href="/signup.html" id="signupLink">Sign Up</a>
@@ -189,6 +190,7 @@
             const user = getCurrentUser();
             const registerAssetLink = document.getElementById('registerAssetLink');
             const adminLink = document.getElementById('adminLink');
+            const notificationManagerLink = document.getElementById('notificationManagerLink');
             
             if (user) {
                 if (user.role === 'admin') {
@@ -196,6 +198,8 @@
                     adminLink.style.display = 'inline';
                 } else if (user.role === 'security') {
                     adminLink.style.display = 'inline';
+                } else if (user.role === 'notification_manager') {
+                    notificationManagerLink.style.display = 'inline';
                 }
             }
         });

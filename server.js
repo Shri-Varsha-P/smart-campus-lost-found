@@ -108,6 +108,16 @@ function checkAssetAdminRole(req, res, next) {
     next();
 }
 
+function checkNotificationManagerRole(req, res, next) {
+    if (!req.user || req.user.role !== 'notification_manager') {
+        return res.status(403).json({
+            success: false,
+            message: "Access denied. Notification Manager role required."
+        });
+    }
+    next();
+}
+
 function checkPostOwnership(req, res, next) {
     const itemId = req.params.id;
     const userId = req.user.id;
@@ -188,17 +198,50 @@ function checkFoundPostOwnership(req, res, next) {
     });
 }
 
-function createNotification(userId, title, message, reportId = null) {
+function createNotification(
+    userId,
+    title,
+    message,
+    reportId = null,
+    notificationType = 'general',
+    assetId = null,
+    lostItemId = null,
+    approvalStatus = null
+) {
+    console.log(notificationType, approvalStatus);
     const sql = `
-        INSERT INTO notifications (user_id, title, message, is_read, report_id)
-        VALUES (?, ?, ?, FALSE, ?)
+        INSERT INTO notifications (
+            user_id,
+            title,
+            message,
+            is_read,
+            report_id,
+            notification_type,
+            asset_id,
+            lost_item_id,
+            approval_status
+        )
+        VALUES (?, ?, ?, FALSE, ?, ?, ?, ?, ?)
     `;
-    
-    db.query(sql, [userId, title, message, reportId], (err, result) => {
-        if (err) {
-            console.log("Error creating notification:", err.message);
+
+    db.query(
+        sql,
+        [
+            userId,
+            title,
+            message,
+            reportId,
+            notificationType,
+            assetId,
+            lostItemId,
+            approvalStatus
+        ],
+        (err, result) => {
+            if (err) {
+                console.log("Error creating notification:", err.message);
+            }
         }
-    });
+    );
 }
 
 function notifyAdmins(title, message, reportId = null) {
@@ -216,13 +259,83 @@ function notifyAdmins(title, message, reportId = null) {
     });
 }
 
+function notifyAllNormalUsers(title, message, notificationType = 'general', assetId = null, lostItemId = null) {
+    const sql = "SELECT id FROM users WHERE role IN ('student', 'staff')";
+    
+    db.query(sql, (err, results) => {
+        if (err) {
+            console.log("Error fetching normal users:", err.message);
+            return;
+        }
+        
+        results.forEach(user => {
+            createNotification(user.id, title, message, null, notificationType, assetId, lostItemId);
+        });
+    });
+}
+
+function notifyNotificationManager(title, message, notificationType = 'campus_asset_lost', assetId = null) {
+    const sql = `
+        SELECT id
+        FROM users
+        WHERE role = 'notification_manager'
+        LIMIT 1
+    `;
+    
+    db.query(sql, (err, results) => {
+        if (err) {
+            console.log("Error fetching notification manager:", err.message);
+            return;
+        }
+        
+        if (results.length === 0) {
+            console.log("No notification manager found.");
+            return;
+        }
+
+        const managerId = results[0].id;
+
+        const checkExistingSql = `
+            SELECT id
+            FROM notifications
+            WHERE user_id = ?
+            AND notification_type = 'campus_asset_lost'
+            AND asset_id = ?
+            AND approval_status = 'pending'
+            LIMIT 1
+        `;
+
+        db.query(checkExistingSql, [managerId, assetId], (err, existingResults) => {
+            if (err) {
+                console.log("Error checking existing notification:", err.message);
+                return;
+            }
+
+            if (existingResults.length > 0) {
+                console.log(`Pending notification already exists for asset ${assetId}.`);
+                return;
+            }
+
+            createNotification(
+    managerId,
+    title,
+    message,
+    null,
+    notificationType,
+    assetId,
+    null,
+    'pending'
+);
+        });
+    });
+}
 const db = mysql.createPool({
     host: process.env.DB_HOST,
     port: process.env.DB_PORT || 3306,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
-    ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+    ssl: { rejectUnauthorized: false }, // Aiven requires SSL
     connectionLimit: 10,
     waitForConnections: true,
     queueLimit: 0,
@@ -269,6 +382,14 @@ app.post("/api/signup", async (req, res) => {
         return res.status(400).json({
             success: false,
             message: "Invalid role."
+        });
+    }
+
+    // Prevent notification_manager role selection during signup
+    if (role === 'notification_manager') {
+        return res.status(400).json({
+            success: false,
+            message: "Notification Manager role cannot be selected during signup."
         });
     }
 
@@ -503,13 +624,25 @@ app.post(
                     });
                 }
 
+                const lostItemId = result.insertId;
+
+                // Notify admins about the new lost item
                 notifyAdmins('New Lost Item Reported', `A new lost item "${title}" has been reported at ${location}.`);
+
+                // Automatically broadcast notification to all normal users
+                notifyAllNormalUsers(
+                    'Lost Item Reported',
+                    `Lost Item: ${title}\nLocation: ${location}\nDate: ${new Date(lost_time).toLocaleString()}\n\nThis item has been reported as lost.`,
+                    'personal_lost_item',
+                    null,
+                    lostItemId
+                );
 
                 res.status(201).json({
                     success: true,
                     message:
                         "Lost item reported successfully!",
-                    item_id: result.insertId,
+                    item_id: lostItemId,
                     image_url: imageUrl
                 });
             }
@@ -1272,7 +1405,35 @@ app.put("/api/assets/:id/status", authenticateToken, checkAssetAdminRole, (req, 
         }
 
         if (status === 'Lost') {
-            notifyAdmins('Asset Marked as Lost', `Asset ID ${assetId} has been marked as lost.`);
+    notifyAdmins('Asset Marked as Lost', `Asset ID ${assetId} has been marked as lost.`);
+
+    const getAssetSql = "SELECT asset_id, name, department FROM institutional_assets WHERE id = ?";
+
+    db.query(getAssetSql, [assetId], (err, assetResults) => {
+        if (err) {
+            console.log("Error fetching asset details:", err.message);
+            return;
+        }
+
+        if (assetResults.length > 0) {
+            const asset = assetResults[0];
+
+            notifyNotificationManager(
+                'Campus Asset Marked as Lost - Pending Approval',
+                `Asset: ${asset.name}\nAsset ID: ${asset.asset_id}\nDepartment: ${asset.department || 'N/A'}\n\nThis campus asset has been marked as lost.IF YOU FIND ITEM SCAN QR CODE AND SUBMIT REPORT.`,
+                'campus_asset_lost',
+                assetId
+            );
+        }
+    });
+} else if (status === 'Available' || status === 'Recovered') {
+            // Delete campus asset lost notification when asset is found/recovered
+            const deleteNotificationSql = "DELETE FROM notifications WHERE notification_type = 'campus_asset_lost' AND asset_id = ?";
+            db.query(deleteNotificationSql, [assetId], (err, deleteResult) => {
+                if (err) {
+                    console.log("Error deleting campus asset notification:", err.message);
+                }
+            });
         }
 
         res.json({
@@ -1546,6 +1707,178 @@ app.put("/api/notifications/:id/read", (req, res) => {
     });
 });
 
+// API endpoint for notification manager to view pending campus asset alerts
+app.get("/api/notification-manager/pending-alerts", authenticateToken, checkNotificationManagerRole, (req, res) => {
+    const sql = `
+        SELECT
+            notifications.*,
+            institutional_assets.asset_id AS asset_identifier,
+            institutional_assets.name AS asset_name,
+            institutional_assets.department AS asset_department,
+            institutional_assets.status AS asset_status,
+            institutional_assets.lost_at AS asset_lost_at
+        FROM notifications
+        LEFT JOIN institutional_assets ON notifications.asset_id = institutional_assets.id
+        WHERE notifications.notification_type = 'campus_asset_lost'
+        AND notifications.approval_status = 'pending'
+        ORDER BY notifications.created_at DESC
+    `;
+
+    db.query(sql, (err, results) => {
+        if (err) {
+            console.log("Error fetching pending alerts:", err.message);
+            return res.status(500).json({
+                success: false,
+                message: "Failed to fetch pending alerts."
+            });
+        }
+
+        res.json({
+            success: true,
+            alerts: results
+        });
+    });
+});
+
+// API endpoint for notification manager to approve a campus asset alert
+app.put("/api/notification-manager/alerts/:id/approve", authenticateToken, checkNotificationManagerRole, (req, res) => {
+    const notificationId = req.params.id;
+    const managerId = req.user.id;
+
+    // First get the notification details
+    const getNotificationSql = "SELECT * FROM notifications WHERE id = ?";
+    
+    db.query(getNotificationSql, [notificationId], (err, notificationResults) => {
+        if (err) {
+            console.log("Error fetching notification:", err.message);
+            return res.status(500).json({
+                success: false,
+                message: "Failed to fetch notification."
+            });
+        }
+
+        if (notificationResults.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Notification not found."
+            });
+        }
+
+        const notification = notificationResults[0];
+
+        if (notification.approval_status !== 'pending') {
+            return res.status(400).json({
+                success: false,
+                message: "This alert has already been handled."
+            });
+        }
+
+        // Update the notification approval status
+        const updateNotificationSql = `
+            UPDATE notifications
+            SET approval_status = 'approved',
+                handled_by = ?,
+                handled_at = NOW()
+            WHERE id = ?
+        `;
+
+        db.query(updateNotificationSql, [managerId, notificationId], (err, result) => {
+            if (err) {
+                console.log("Error updating notification status:", err.message);
+                return res.status(500).json({
+                    success: false,
+                    message: "Failed to update notification status."
+                });
+            }
+
+            // Broadcast the approved alert to all normal users
+            const getAssetSql = "SELECT asset_id, name, department FROM institutional_assets WHERE id = ?";
+            
+            db.query(getAssetSql, [notification.asset_id], (err, assetResults) => {
+                if (err) {
+                    console.log("Error fetching asset details:", err.message);
+                    return;
+                }
+
+                if (assetResults.length > 0) {
+                    const asset = assetResults[0];
+                    notifyAllNormalUsers(
+                        'Campus Asset Reported Lost',
+                        `Asset: ${asset.name}\nAsset ID: ${asset.asset_id}\nDepartment: ${asset.department || 'N/A'}\n\nThis campus asset has been reported as lost.`,
+                        'campus_asset_lost',
+                        notification.asset_id,
+                        null
+                    );
+                }
+            });
+
+            res.json({
+                success: true,
+                message: "Alert approved and broadcast to all users."
+            });
+        });
+    });
+});
+
+// API endpoint for notification manager to reject a campus asset alert
+app.put("/api/notification-manager/alerts/:id/reject", authenticateToken, checkNotificationManagerRole, (req, res) => {
+    const notificationId = req.params.id;
+    const managerId = req.user.id;
+
+    // First get the notification details
+    const getNotificationSql = "SELECT * FROM notifications WHERE id = ?";
+    
+    db.query(getNotificationSql, [notificationId], (err, notificationResults) => {
+        if (err) {
+            console.log("Error fetching notification:", err.message);
+            return res.status(500).json({
+                success: false,
+                message: "Failed to fetch notification."
+            });
+        }
+
+        if (notificationResults.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Notification not found."
+            });
+        }
+
+        const notification = notificationResults[0];
+
+        if (notification.approval_status !== 'pending') {
+            return res.status(400).json({
+                success: false,
+                message: "This alert has already been handled."
+            });
+        }
+
+        // Update the notification approval status
+        const updateNotificationSql = `
+            UPDATE notifications
+            SET approval_status = 'rejected',
+                handled_by = ?,
+                handled_at = NOW()
+            WHERE id = ?
+        `;
+
+        db.query(updateNotificationSql, [managerId, notificationId], (err, result) => {
+            if (err) {
+                console.log("Error updating notification status:", err.message);
+                return res.status(500).json({
+                    success: false,
+                    message: "Failed to update notification status."
+                });
+            }
+
+            res.json({
+                success: true,
+                message: "Alert rejected. No broadcast sent to users."
+            });
+        });
+    });
+});
+
 app.get("/api/users/:id", (req, res) => {
     const userId = req.params.id;
 
@@ -1589,6 +1922,52 @@ app.get("/api/users", (req, res) => {
         res.json({
             success: true,
             users: results
+        });
+    });
+});
+
+// Admin endpoint to assign notification_manager role to a user
+app.put("/api/users/:id/role", authenticateToken, checkAdminRole, (req, res) => {
+    const userId = req.params.id;
+    const { role } = req.body;
+
+    if (!role) {
+        return res.status(400).json({
+            success: false,
+            message: "Please provide a role."
+        });
+    }
+
+    // Only allow assignment of notification_manager role through this endpoint
+    // Other role changes should use existing mechanisms
+    if (role !== 'notification_manager') {
+        return res.status(400).json({
+            success: false,
+            message: "This endpoint is only for assigning the notification_manager role."
+        });
+    }
+
+    const sql = "UPDATE users SET role = ? WHERE id = ?";
+
+    db.query(sql, [role, userId], (err, result) => {
+        if (err) {
+            console.log("Error updating user role:", err.message);
+            return res.status(500).json({
+                success: false,
+                message: "Failed to update user role."
+            });
+        }
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found."
+            });
+        }
+
+        res.json({
+            success: true,
+            message: "User role updated successfully!"
         });
     });
 });
